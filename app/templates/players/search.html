@@ -1,0 +1,57 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pager %}
+{% block title %}Players{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Players</h1>
+    <p class="subtitle">{% if g.user %}Search stored players. Anyone else can be loaded from MCSR Ranked with the Load button.
+      {% else %}Search stored players. <a href="{{ url_for('auth.login', next=request.full_path) }}">Log in</a> to load new players from MCSR Ranked.{% endif %}</p>
+  </div>
+</div>
+<section class="card">
+  <form class="filters" method="get" action="{{ url_for('players.search') }}" role="search">
+    <div style="flex:1; max-width:420px"><label for="q">Nickname or UUID</label>
+      <input id="q" type="search" name="q" value="{{ q }}" maxlength="40" placeholder="e.g. edcr" style="width:100%"></div>
+    <button class="btn" type="submit">Search</button>
+  </form>
+</section>
+<section class="card">
+  <div class="card-head"><h2>{% if q %}Stored players matching “{{ q }}”{% else %}Players Searched So Far{% endif %}</h2>
+    <span class="hint">{{ paging.total }} found</span></div>
+  {% if rows %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Player</th><th class="num">Elo</th><th class="num">Rank</th><th>Country</th><th>Profile</th></tr></thead>
+    <tbody>
+    {% for p in rows %}
+      <tr>
+        <td><a href="{{ url_for('players.profile', uuid=p.uuid) }}">{{ p.nickname }}</a></td>
+        <td class="num">{{ p.current_elo if p.current_elo is not none else '–' }}</td>
+        <td class="num">{{ ('#' ~ p.elo_rank) if p.elo_rank is not none else '–' }}</td>
+        <td class="muted">{{ (p.country or '–')|upper }}</td>
+        <td>{% if p.profile_status == 'full' %}<span class="badge accent">Full</span>{% else %}<span class="badge muted">Basic</span>{% endif %}</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {{ pager(paging, 'players.search') }}
+  {% else %}
+  <p class="empty">{% if q %}No stored players match “{{ q }}”.{% else %}Nobody has been searched yet. Try a nickname above.{% endif %}</p>
+  {% endif %}
+  {% if loadable %}
+  <div class="load-player" style="margin-top:16px">
+    {% if g.user %}
+    <form method="post" action="{{ url_for('players.load') }}" class="inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <input type="hidden" name="q" value="{{ q }}">
+      <span class="muted">Not who you're looking for?</span>
+      <button class="btn small" type="submit">Load “{{ q }}” from MCSR Ranked</button>
+    </form>
+    <p class="muted small" style="margin:6px 0 0">Loads their profile now and imports their full match history in the background.</p>
+    {% else %}
+    <p class="muted"><a href="{{ url_for('auth.login', next=request.full_path) }}">Log in</a> to load “{{ q }}” from MCSR Ranked.</p>
+    {% endif %}
+  </div>
+  {% endif %}
+</section>
+{% endblock %}

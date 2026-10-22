@@ -1,0 +1,175 @@
+{% extends "base.html" %}
+{% from "_macros.html" import elo_delta, chart, chart_scripts, match_link, pager %}
+{# One row of a mirrored A | label | B table; the better value (better='high' or 'low') is emphasised. #}
+{% macro mrow(label, va, vb, da=none, db=none, better=none) -%}
+  {% set a_best = better and va is not none and vb is not none and ((va > vb) if better == 'high' else (va < vb)) %}
+  {% set b_best = better and va is not none and vb is not none and ((vb > va) if better == 'high' else (vb < va)) %}
+  <tr><td class="a{{ ' better' if a_best }}">{{ da if da is not none else va }}</td><td class="lbl">{{ label }}</td>
+    <td class="b{{ ' better' if b_best }}">{{ db if db is not none else vb }}</td></tr>
+{%- endmacro %}
+{% block title %}Compare Players{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Compare Players</h1>
+    <p class="subtitle">Ranked matches only, with identical filters for both players.</p>
+  </div>
+  <div class="actions"><a class="btn secondary" href="{{ url_for('compare.form') }}">Recent Form →</a></div>
+</div>
+
+<section class="card">
+  <form class="filters" method="get" action="{{ url_for('compare.index') }}">
+    <div><label for="a">Player A</label><input id="a" type="text" name="a" value="{{ a.nickname if a else request.args.get('a', '') }}" maxlength="40" placeholder="Nickname or UUID"></div>
+    <div><label for="b">Player B</label><input id="b" type="text" name="b" value="{{ b.nickname if b else request.args.get('b', '') }}" maxlength="40" placeholder="Nickname or UUID"></div>
+    <div><label for="season">Season</label>
+      <select id="season" name="season"><option value="lifetime">Lifetime</option>
+        {% for s in seasons %}<option value="{{ s }}" {% if season == s %}selected{% endif %}>Season {{ s }}</option>{% endfor %}
+      </select></div>
+    <div><label for="from">From</label><input id="from" type="date" name="from" value="{{ request.args.get('from', '') }}"></div>
+    <div><label for="to">To</label><input id="to" type="date" name="to" value="{{ request.args.get('to', '') }}"></div>
+    <button class="btn" type="submit">Compare</button>
+  </form>
+</section>
+
+{% if sa and sb %}
+  {% for p in (a, b) if p.profile_status != 'full' %}<p class="flash info">{{ p.nickname }} has a basic profile: only matches against searched players are stored.</p>{% endfor %}
+
+{# Versus header: both players and their head-to-head record. #}
+<section class="card vs-card" id="h2h">
+  <div class="vs-head">
+    {% for p, slot in ((a, 1), (b, 2)) %}
+    <div class="vs-player {{ 'right' if slot == 2 }}">
+      <a class="vs-name" href="{{ url_for('players.profile', uuid=p.uuid) }}"><span class="swatch-dot" style="background:var(--series-{{ slot }})"></span>{{ p.nickname }}</a>
+      <div class="muted small">{% if p.current_elo is not none %}{{ p.current_elo }} Elo{% else %}Unranked{% endif %}</div>
+    </div>
+    {% if slot == 1 %}
+    <div class="vs-score">
+      {% if h2h %}{% set s = h2h.summary %}
+        <div class="score"><span>{{ s.a_wins }}</span><span class="dash">–</span><span>{{ s.b_wins }}</span></div>
+        <div class="muted small">{{ s.games }} ranked meeting{{ 's' if s.games != 1 }}{% if s.draws %} · {{ s.draws }} draw{{ 's' if s.draws != 1 }}{% endif %}</div>
+      {% else %}
+        <div class="muted small">No ranked meetings<br>under these filters</div>
+      {% endif %}
+    </div>
+    {% endif %}
+    {% endfor %}
+  </div>
+  {% if h2h %}{% set s = h2h.summary %}{% set st = h2h.streaks %}
+  <div class="vs-bar" role="img" aria-label="{{ a.nickname }} {{ s.a_wins }} wins, {{ s.draws }} draws, {{ b.nickname }} {{ s.b_wins }} wins">
+    {% if s.a_wins %}<span style="flex:{{ s.a_wins }}; background:var(--series-1)"></span>{% endif %}
+    {% if s.draws %}<span style="flex:{{ s.draws }}; background:var(--status-neutral)"></span>{% endif %}
+    {% if s.b_wins %}<span style="flex:{{ s.b_wins }}; background:var(--series-2)"></span>{% endif %}
+  </div>
+  <div class="vs-rates"><span>{{ s.a_rate|rate }}</span><span>{{ s.b_rate|rate }}</span></div>
+  <div class="vs-facts">
+    {% if st.current %}<div><div class="label">Current streak</div><div class="val">{% if st.current.who %}{{ st.current.who }} · {% endif %}{{ st.current.label }}</div></div>{% endif %}
+    <div><div class="label">Longest streaks</div><div class="val">{{ st.a_longest.length if st.a_longest else 0 }} <span class="muted">vs</span> {{ st.b_longest.length if st.b_longest else 0 }}</div></div>
+    <div><div class="label">Elo exchanged</div><div class="val">{{ elo_delta(s.a_elo) }} <span class="muted">/</span> {{ elo_delta(s.b_elo) }}</div></div>
+  </div>
+  {% endif %}
+</section>
+
+<div class="two-col">
+  <section class="card">
+    <div class="card-head"><h2>Overall Ranked Stats</h2><span class="hint">{% if season is none %}lifetime{% else %}season {{ season }}{% endif %}</span></div>
+    <div class="table-wrap"><table class="mirror">
+      <thead><tr><th class="a">{{ a.nickname }}</th><th></th><th class="b">{{ b.nickname }}</th></tr></thead>
+      <tbody>
+        {{ mrow('Games', sa.games_played, sb.games_played) }}
+        {{ mrow('Win rate', sa.win_rate, sb.win_rate, sa.win_rate|rate, sb.win_rate|rate, 'high') }}
+        {{ mrow('W – L – D', none, none, '%s – %s – %s'|format(sa.wins, sa.losses, sa.draws), '%s – %s – %s'|format(sb.wins, sb.losses, sb.draws)) }}
+        {{ mrow('Forfeit rate', sa.forfeit_rate, sb.forfeit_rate, sa.forfeit_rate|rate, sb.forfeit_rate|rate, 'low') }}
+        {{ mrow('Elo change', sa.total_elo_change, sb.total_elo_change, elo_delta(sa.total_elo_change), elo_delta(sb.total_elo_change)) }}
+        {{ mrow('Avg Elo / match', sa.avg_elo_change, sb.avg_elo_change, '%.2f'|format(sa.avg_elo_change) if sa.avg_elo_change is not none else 'N/A', '%.2f'|format(sb.avg_elo_change) if sb.avg_elo_change is not none else 'N/A', 'high') }}
+        {{ mrow('Average win', sa.avg_time, sb.avg_time, sa.avg_time|ms, sb.avg_time|ms, 'low') }}
+        {{ mrow('Fastest win', sa.best_time, sb.best_time, sa.best_time|ms, sb.best_time|ms, 'low') }}
+      </tbody>
+    </table></div>
+  </section>
+  {% if season_chart %}
+  <section class="card">
+    <div class="card-head"><h2>Win Rate by Season</h2><span class="hint">ranked · same date filter</span></div>
+    {% call chart('chart-compare', season_chart, '', 'Ranked win rate per season for both players') %}
+      <table><thead><tr><th>Season</th><th class="num">{{ a.nickname }} games</th><th class="num">{{ a.nickname }} win rate</th><th class="num">{{ b.nickname }} games</th><th class="num">{{ b.nickname }} win rate</th></tr></thead>
+      <tbody>{% for r in season_table %}<tr><td>S{{ r.season }}</td><td class="num">{{ r.a.games }}</td><td class="num">{{ r.a.rate|rate }}</td><td class="num">{{ r.b.games }}</td><td class="num">{{ r.b.rate|rate }}</td></tr>{% endfor %}</tbody></table>
+    {% endcall %}
+  </section>
+  {% endif %}
+</div>
+
+{% if h2h %}{% set s = h2h.summary %}
+<section class="card">
+  <div class="card-head"><h2>Head to Head</h2><span class="hint">{{ s.games }} ranked meetings · same filters</span></div>
+  {% if h2h.chart %}
+    <h3 style="margin-top:0">Running Score</h3>
+    {% call chart('chart-h2h', h2h.chart, 'short', a.nickname ~ ' wins minus ' ~ b.nickname ~ ' wins after each meeting') %}
+      <table><thead><tr><th>Season</th><th class="num">Meetings</th><th class="num">{{ a.nickname }} wins</th><th class="num">{{ b.nickname }} wins</th></tr></thead>
+      <tbody>{% for r in h2h.seasons %}<tr><td>S{{ r.season }}</td><td class="num">{{ r.games }}</td><td class="num">{{ r.a_wins }}</td><td class="num">{{ r.b_wins }}</td></tr>{% endfor %}</tbody></table>
+    {% endcall %}
+    <p class="muted small" style="margin:6px 0 0">Above zero: {{ a.nickname }} leads the series; below zero: {{ b.nickname }} does.</p>
+  {% endif %}
+
+  <div class="two-col" style="margin-top:20px">
+    <div>
+      <h3 style="margin-top:0">In Their Meetings</h3>
+      <div class="table-wrap"><table class="mirror">
+        <thead><tr><th class="a">{{ a.nickname }}</th><th></th><th class="b">{{ b.nickname }}</th></tr></thead>
+        <tbody>
+          {{ mrow('Average win', s.a_avg_ms, s.b_avg_ms, s.a_avg_ms|ms, s.b_avg_ms|ms, 'low') }}
+          {{ mrow('Fastest win', s.a_best_ms, s.b_best_ms, s.a_best_ms|ms, s.b_best_ms|ms, 'low') }}
+          {{ mrow('Forfeited', s.a_forfeits, s.b_forfeits, better='low') }}
+        </tbody>
+      </table></div>
+    </div>
+    <div>
+      <h3 style="margin-top:0">By Seed Type</h3>
+      {% if h2h.seeds and (h2h.seeds.overworld or h2h.seeds.nether) %}
+      <div class="table-wrap"><table>
+        <thead><tr><th>Type</th><th class="num">Meetings</th><th class="num">{{ a.nickname }}</th><th class="num">{{ b.nickname }}</th></tr></thead>
+        <tbody>
+        {% for key, label in [('overworld', 'Overworld'), ('nether', 'Bastion')] %}
+          <tr><td colspan="4" class="muted small" style="font-weight:600">{{ label }}</td></tr>
+          {% for r in h2h.seeds[key] %}<tr><td>{{ nice(r.type) }}</td><td class="num">{{ r.games }}</td>
+            <td class="num {{ 'better' if r.a_wins > r.b_wins }}">{{ r.a_wins }}</td><td class="num {{ 'better' if r.b_wins > r.a_wins }}">{{ r.b_wins }}</td></tr>{% endfor %}
+        {% endfor %}
+        </tbody>
+      </table></div>
+      {% elif h2h.seeds is none %}<p class="empty">Seed data is unavailable right now.</p>
+      {% else %}<p class="empty">No seed data for these meetings.</p>{% endif %}
+    </div>
+  </div>
+
+  <h3 style="margin-top:22px">Every Meeting</h3>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Match</th><th>Winner</th><th class="num">Time</th><th class="num">{{ a.nickname }} Elo</th><th></th></tr></thead>
+    <tbody>{% for m in h2h.meetings %}
+      {% set a_cls = 'won' if m.a_outcome == 'win' else 'lost' if m.a_outcome == 'loss' else '' %}
+      {% set b_cls = 'won' if m.a_outcome == 'loss' else 'lost' if m.a_outcome == 'win' else '' %}
+      <tr class="rowlink">
+        <td>{{ match_link(m.match_id, a.nickname, b.nickname, first_class=a_cls or none, second_class=b_cls) }}
+          <div class="muted small">S{{ m.season_id }} · {{ m.played_at.strftime('%b %d %Y, %H:%M') }}</div></td>
+        <td>{% if m.a_outcome == 'draw' %}<span class="badge draw">DRAW</span>{% else %}{{ a.nickname if m.a_outcome == 'win' else b.nickname }}{% if m.a_forfeited or m.b_forfeited %} <span class="badge muted">FF</span>{% endif %}{% endif %}</td>
+        <td class="num">{{ m.win_ms|ms }}</td>
+        <td class="num">{{ elo_delta(m.a_elo) }}</td>
+        <td class="chev" aria-hidden="true">›</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {{ pager(h2h.paging, 'compare.index') }}
+  {% for p in (a, b) if p.profile_status != 'full' %}{% if loop.first %}<p class="muted small" style="margin:12px 0 0">Only stored matches count: {{ p.nickname }} hasn't been searched, so meetings are complete only if the other player's full history is stored.</p>{% endif %}{% endfor %}
+</section>
+{% endif %}
+{% elif one %}
+<section class="card">
+  <h2>Who should {{ one.nickname }} be compared with?</h2>
+  {% if suggest %}
+  <p class="muted">The players {{ one.nickname }} has met most often in ranked:</p>
+  <div class="try" style="margin-top:0">
+    {% for r in suggest %}<a class="chip" href="{{ url_for('compare.index', a=one.uuid, b=r.uuid) }}#h2h">{{ r.nickname }} <span class="muted small">{{ r.games }} games</span></a>{% endfor %}
+  </div>
+  {% else %}<p class="empty">Type a second player in the form above.</p>{% endif %}
+</section>
+{% elif not (a or b) %}
+<section class="card"><p class="empty">Enter two players to compare. Players must have been looked up at least once, so <a href="{{ url_for('players.search') }}">find a player</a> first if one is missing.</p></section>
+{% endif %}
+{% endblock %}
+{% block scripts %}{% if season_chart or (h2h and h2h.chart) %}{{ chart_scripts() }}{% endif %}{% endblock %}

@@ -1,0 +1,41 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pager, note_item %}
+{% block title %}My Notes{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>My Notes</h1>
+    <p class="subtitle">Private notes and tags you've added to matches. Add one from any match page.</p>
+  </div>
+</div>
+
+<section class="card">
+  <form class="filters" method="get" action="{{ url_for('notes.index') }}" role="search">
+    <div style="flex:1; max-width:420px"><label for="q">Search notes</label>
+      <input id="q" type="search" name="q" value="{{ q }}" maxlength="100" placeholder="e.g. bastion route" style="width:100%"></div>
+    {% if tag %}<input type="hidden" name="tag" value="{{ tag }}">{% endif %}
+    <button class="btn" type="submit">Search</button>
+    {% if q or tag %}<a class="btn ghost" href="{{ url_for('notes.index') }}">Clear</a>{% endif %}
+  </form>
+  {% if tags %}
+  <div class="tagcloud" aria-label="Your tags">
+    {% for t in tags %}<a class="tag {% if t._id == tag %}on{% endif %}" href="{{ url_for('notes.index', tag=t._id, q=q or None) }}">#{{ t._id }} <span>{{ t.n }}</span></a>{% endfor %}
+  </div>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>{% if q %}Results for “{{ q }}”{% elif tag %}Tagged #{{ tag }}{% else %}All Notes{% endif %}</h2>
+    <span class="hint">{{ paging.total }} note{{ '' if paging.total == 1 else 's' }}</span></div>
+  {% if notes %}
+  <ul class="notes">
+    {% for n in notes %}{% set m = summaries.get(n.match_id) %}
+    {{ note_item(n, m) }}
+    {% endfor %}
+  </ul>
+  {{ pager(paging, 'notes.index') }}
+  {% else %}
+  <p class="empty">{% if q or tag %}No notes match.{% else %}No notes yet. Open any match and add one.{% endif %}</p>
+  {% endif %}
+</section>
+{% endblock %}

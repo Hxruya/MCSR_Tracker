@@ -1,0 +1,17 @@
+{% extends "base.html" %}
+{% block title %}Edit Bookmark{% endblock %}
+{% block content %}
+<section class="card form-card" style="max-width:520px">
+  <h1 style="font-size:1.35rem">Note for {{ bm.nickname }}</h1>
+  <p class="muted small">Up to 255 characters. Only you can see it.</p>
+  <form method="post" action="{{ url_for('bookmarks.edit', bookmark_id=bm.bookmark_id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field"><label for="note">Note</label>
+      <textarea id="note" name="note" rows="4" maxlength="255" style="width:100%">{{ bm.note or '' }}</textarea></div>
+    <div style="display:flex; gap:8px">
+      <button class="btn" type="submit">Save Note</button>
+      <a class="btn ghost" href="{{ url_for('bookmarks.index') }}">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

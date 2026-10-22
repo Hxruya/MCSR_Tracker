@@ -1,0 +1,91 @@
+{% macro outcome_badge(outcome, forfeited=None) -%}
+  <span class="badge {{ outcome }}">{{ outcome|upper }}</span>{% if forfeited == 1 %} <span class="badge muted">FF</span>{% endif %}
+{%- endmacro %}
+
+{% macro elo_delta(value) -%}
+  {% if value is none %}<span class="muted">–</span>
+  {% elif value > 0 %}<span class="pos">+{{ value }}</span>
+  {% elif value < 0 %}<span class="neg">{{ value }}</span>
+  {% else %}0{% endif %}
+{%- endmacro %}
+
+{% macro match_type(t) -%}
+  {{ {1: 'Casual', 2: 'Ranked', 3: 'Private', 4: 'Event'}.get(t, t) }}
+{%- endmacro %}
+
+{# A match as "first vs second +N" linking to the match page; every match list uses it.
+   first_class=None prints `first` as plain text. stretched=True makes the whole tr.rowlink clickable. #}
+{% macro match_link(match_id, first=None, second=None, extra=0, first_class='won', second_class='lost', sep='vs', anchor='', stretched=True) -%}
+<a class="{{ 'stretched ' if stretched }}matchup" href="{{ url_for('matches.detail', match_id=match_id) }}{{ anchor }}">
+{%- if first and first_class %}<span class="{{ first_class }}">{{ first }}</span>{% elif first %}{{ first }}{% endif -%}
+{%- if second %}<span class="vs"{% if not first %} style="margin-left:0"{% endif %}>{{ sep }}</span><span class="{{ second_class }}">{{ second }}</span>{% endif -%}
+{%- if extra and extra > 0 %}<span class="vs">+{{ extra }}</span>{% endif -%}
+</a>
+{%- endmacro %}
+
+{# One of the user's match notes. m = the match summary (or none); compact = short text, no tags or buttons. #}
+{% macro note_item(n, m, compact=False) -%}
+<li class="note">
+  <div class="note-head">
+    {{ match_link(n.match_id, m.players if m and m.players else 'Match ' ~ n.match_id, first_class=None, anchor='#notes', stretched=False) }}
+    <span class="muted small">{% if m and not compact %}{{ m.played_at.strftime('%b %d, %Y') }} · {% endif %}updated {{ n.updated_at.strftime('%b %d, %H:%M') }}</span>
+  </div>
+  <p class="note-text">{{ n.text|truncate(160) if compact else n.text }}</p>
+  {% if not compact %}
+  <div class="note-foot">
+    <div>{% for t in n.tags %}<a class="tag" href="{{ url_for('notes.index', tag=t) }}">#{{ t }}</a>{% endfor %}</div>
+    <div class="nowrap">
+      <a class="btn small secondary" href="{{ url_for('notes.edit', note_id=n._id) }}">Edit</a>
+      <form method="post" action="{{ url_for('notes.delete', note_id=n._id) }}" style="display:inline">
+        <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+        <input type="hidden" name="back" value="{{ request.full_path }}">
+        <button class="btn small danger" type="submit">Delete</button>
+      </form>
+    </div>
+  </div>
+  {% endif %}
+</li>
+{%- endmacro %}
+
+{% macro pager(paging, endpoint) -%}
+  {% if paging.last > 1 %}
+  <nav class="pager" aria-label="Pages">
+    {% if paging.has_prev %}<a class="btn small secondary" href="{{ url_for(endpoint, **dict(request.args, page=paging.page - 1, **kwargs)) }}">← Prev</a>{% endif %}
+    <span class="muted">Page {{ paging.page }} of {{ paging.last }} ({{ paging.total }} total)</span>
+    {% if paging.has_next %}<a class="btn small secondary" href="{{ url_for(endpoint, **dict(request.args, page=paging.page + 1, **kwargs)) }}">Next →</a>{% endif %}
+  </nav>
+  {% endif %}
+{%- endmacro %}
+
+{# A chart: canvas + its JSON spec (see static/charts.js) + an HTML legend when there are >= 2 series.
+   The caller supplies the table view (caller() block) so values never live only in the tooltip. #}
+{% macro chart(id, spec, size='', label='Chart') -%}
+  {% if spec.legend or spec.series|length > 1 %}
+  <div class="legend" aria-hidden="true">{% for s in (spec.legend or spec.series) %}
+    <span class="key"><span class="swatch" style="background: var(--series-{{ s.slot }})"></span>{{ s.name }}</span>{% endfor %}
+  </div>
+  {% endif %}
+  <div class="chart {{ size }}"><canvas data-chart="{{ id }}" role="img" aria-label="{{ label }}"></canvas></div>
+  <script type="application/json" id="{{ id }}">{{ spec|tojson }}</script>
+  {% if caller %}<details><summary>Show data table</summary><div class="table-wrap">{{ caller() }}</div></details>{% endif %}
+{%- endmacro %}
+
+{% macro chart_scripts() -%}
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.min.js"
+          integrity="sha512-CQBWl4fJHWbryGE+Pc7UAxWMUMNMWzWxF4SQo9CgkJIN1kx6djDQZjh3Y8SZ1d+6I+1zze6Z7kHXO7q3UyZAWw=="
+          crossorigin="anonymous" referrerpolicy="no-referrer"></script>
+  <script src="{{ asset('charts.js') }}"></script>
+{%- endmacro %}
+
+{% macro stat_grid(st) -%}
+  <div class="grid stats4">
+    <div class="stat"><div class="label">Games</div><div class="value">{{ st.games_played if st else 0 }}</div></div>
+    <div class="stat"><div class="label">Wins</div><div class="value">{{ st.wins if st else 0 }}</div></div>
+    <div class="stat"><div class="label">Losses</div><div class="value">{{ st.losses if st else 0 }}</div></div>
+    <div class="stat"><div class="label">Draws</div><div class="value">{{ st.draws if st else 0 }}</div></div>
+    <div class="stat"><div class="label">Forfeits</div><div class="value">{{ st.forfeits if st else 0 }}</div></div>
+    <div class="stat"><div class="label">Win rate</div><div class="value">{{ (st.win_rate if st else none)|rate }}</div></div>
+    <div class="stat"><div class="label">Forfeit rate</div><div class="value">{{ (st.forfeit_rate if st else none)|rate }}</div></div>
+    <div class="stat"><div class="label">Elo change</div><div class="value">{{ elo_delta(st.total_elo_change if st else none) }}</div></div>
+  </div>
+{%- endmacro %}

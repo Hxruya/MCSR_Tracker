@@ -1,0 +1,121 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pager, match_type, match_link, chart, chart_scripts %}
+{% block title %}Seed Analysis{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Seed Analysis</h1>
+    <p class="subtitle">Which overworld + bastion combinations are won fastest.</p>
+  </div>
+</div>
+
+{% if opts %}
+<section class="card">
+  <form class="filters" method="get" action="{{ url_for('seeds.index') }}">
+    <div><label for="overworld">Overworld structure</label>
+      <select id="overworld" name="overworld"><option value="">Any</option>
+        {% for v in opts.overworld %}<option value="{{ v }}" {% if f.overworld == v %}selected{% endif %}>{{ nice(v) }}</option>{% endfor %}
+      </select></div>
+    <div><label for="nether">Bastion</label>
+      <select id="nether" name="nether"><option value="">Any</option>
+        {% for v in opts.nether %}<option value="{{ v }}" {% if f.nether == v %}selected{% endif %}>{{ nice(v) }}</option>{% endfor %}
+      </select></div>
+    <div><label for="variation">Variation</label>
+      <select id="variation" name="variation"><option value="">Any</option>
+        {% for group, values in opts.variations.items() %}<optgroup label="{{ group }}">
+          {% for v in values %}<option value="{{ v }}" {% if f.variation == v %}selected{% endif %}>{{ v.split(':')[-1]|replace('_', ' ') }}</option>{% endfor %}
+        </optgroup>{% endfor %}
+      </select></div>
+    <div><label for="type">Matches</label>
+      <select id="type" name="type">
+        <option value="ranked" {% if f.type_name != 'all' %}selected{% endif %}>Ranked</option>
+        <option value="all" {% if f.type_name == 'all' %}selected{% endif %}>All types</option>
+      </select></div>
+    <button class="btn" type="submit">Analyse</button>
+    <a class="btn ghost" href="{{ url_for('seeds.index') }}">Reset</a>
+  </form>
+</section>
+{% endif %}
+
+{% if opts and total is defined %}
+<div class="kpis">
+  <div class="stat"><div class="label">Fastest combination</div>
+    <div class="value" style="font-size:1.25rem">{% if fastest %}{{ nice(fastest.overworld) }} + {{ nice(fastest.nether) }}{% else %}–{% endif %}</div>
+    <div class="sub">{% if fastest %}average {{ fastest.avg_ms|ms }} · {{ fastest.wins }} wins{% else %}needs {{ min_wins }}+ wins{% endif %}</div></div>
+  <div class="stat"><div class="label">Slowest combination</div>
+    <div class="value" style="font-size:1.25rem">{% if slowest %}{{ nice(slowest.overworld) }} + {{ nice(slowest.nether) }}{% else %}–{% endif %}</div>
+    <div class="sub">{% if slowest %}average {{ slowest.avg_ms|ms }} · {{ slowest.wins }} wins{% endif %}</div></div>
+  <div class="stat"><div class="label">Overall average win</div><div class="value">{{ (overall.avg_ms if overall else none)|ms }}</div>
+    <div class="sub">median {{ (overall.median_ms if overall else none)|ms }}</div></div>
+  <div class="stat"><div class="label">Completed wins analysed</div><div class="value">{{ '{:,}'.format(overall.wins if overall else 0) }}</div>
+    <div class="sub">{{ combos|length }} combinations · {{ 'ranked' if f.type_name != 'all' else 'all types' }}</div></div>
+</div>
+
+<section class="card">
+  <div class="card-head"><h2>Combinations Ranked by Average Winning Time</h2>
+    <span class="hint">completed wins only · forfeits and decay excluded</span></div>
+  {% if combos %}
+  <h3 style="margin-top:0">Seconds faster or slower than the overall average</h3>
+  {% if charts.combos %}{{ chart('chart-combos', charts.combos, 'xtall', 'Average winning time of each combination compared with the overall average') }}{% endif %}
+  <h3 style="margin-top:22px">Full Ranking</h3>
+  <div>
+    <div class="table-wrap">
+      <table>
+        <thead><tr><th>#</th><th>Combination</th><th class="num">Average</th><th class="num">Median</th><th class="num">vs avg</th></tr></thead>
+        <tbody>{% for c in combos %}
+          <tr class="rowlink">
+            <td class="rank">{{ c.rank }}</td>
+            <td><a class="stretched matchup" href="{{ url_for('seeds.index', overworld=c.overworld, nether=c.nether, type=f.type_name, variation=f.variation) }}#matches">{{ nice(c.overworld) }} + {{ nice(c.nether) }}</a>
+              <div class="muted small">{{ c.wins }} wins · fastest {{ c.best_ms|ms }}{% if c.small %} · <span class="badge muted">small sample</span>{% endif %}</div></td>
+            <td class="num"><strong>{{ c.avg_ms|ms }}</strong></td>
+            <td class="num">{{ c.median_ms|ms }}</td>
+            <td class="num {{ 'pos' if c.delta_s is not none and c.delta_s < 0 else 'neg' if c.delta_s is not none and c.delta_s > 0 else '' }}">{% if c.delta_s is not none %}{{ '%+.1f'|format(c.delta_s) }}s{% else %}–{% endif %}</td>
+          </tr>
+        {% endfor %}</tbody>
+      </table>
+    </div>
+  </div>
+  <p class="muted small" style="margin:14px 0 0">Averages include every completed ranked win in the stored data, mostly the {{ full_players }} fully imported players and their opponents, so with hundreds of wins per combination individual players' skill largely evens out.
+    Combinations with fewer than {{ min_wins }} wins are flagged and left out of the fastest/slowest tiles. Click a combination to see its matches.</p>
+  {% else %}<p class="empty">No seeded matches for these filters.</p>{% endif %}
+</section>
+
+<section class="card" style="margin-top:20px">
+  <div class="card-head"><h2>End Game: Zero Cycles</h2>
+    <span class="hint">{% if end and end.kills %}{{ '{:,}'.format(end.kills) }} dragon kills from {{ '{:,}'.format(end_cov.matches) }} ranked matches with timelines · {{ end_cov.seasons }}{% endif %}</span></div>
+  {% if end and end.kills %}
+  <div class="grid stats4" style="margin-bottom:18px">
+    <div class="stat"><div class="label">Zero-cycle rate</div><div class="value">{{ end.zero_rate }}%</div><div class="sub">dragon dead ≤ {{ cutoff_s }}s after entering the End</div></div>
+    <div class="stat"><div class="label">Median dragon time</div><div class="value">{{ end.median_split|ms }}</div><div class="sub">all dragon kills</div></div>
+    <div class="stat"><div class="label">Fastest zero cycle</div><div class="value">{{ end.best_zero|ms }}</div><div class="sub">in the sample</div></div>
+    <div class="stat"><div class="label">Died in the End</div><div class="value">{{ end.died_in_end_rate }}%</div><div class="sub">of End entries</div></div>
+  </div>
+  <h3 style="margin-top:0">Dragon time after entering the End</h3>
+  {% call chart('chart-dragon', charts.dragon, 'short', 'Histogram of time from entering the End to killing the dragon') %}
+    <table><thead><tr><th>Bin</th><th class="num">Dragon kills</th></tr></thead>
+    <tbody>{% for lbl in end.histogram.labels %}{% if end.histogram.counts[loop.index0] %}<tr><td>{{ lbl }}</td><td class="num">{{ end.histogram.counts[loop.index0] }}</td></tr>{% endif %}{% endfor %}</tbody></table>
+  {% endcall %}
+  <p class="muted small" style="margin:14px 0 0">Failed zero-cycle attempts aren't labelled in the data, so rates are shares of dragon kills.</p>
+  {% else %}<p class="empty">End-game stats appear once match timelines have been loaded.</p>{% endif %}
+</section>
+
+<section class="card" id="matches" style="margin-top:20px">
+  <div class="card-head"><h2>Matching Matches</h2><span class="hint">{{ '{:,}'.format(total) }} found · newest first</span></div>
+  {% if rows %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Date (UTC)</th><th>Players</th><th>Overworld</th><th>Bastion</th><th>Result</th><th class="num">Time</th></tr></thead>
+    <tbody>{% for r in rows %}
+      <tr class="rowlink"><td class="muted nowrap">{{ r.doc.played_at.strftime('%Y-%m-%d %H:%M') }}</td>
+        <td>{{ match_link(r.doc._id, (r.sql.players if r.sql else 'Match ' ~ r.doc._id)|truncate(60), first_class=None) }}</td>
+        <td>{{ nice(r.doc.seed.overworld if r.doc.seed else none) }}</td>
+        <td>{{ nice(r.doc.seed.nether if r.doc.seed else none) }}</td>
+        <td>{% if not r.sql %}<span class="muted">–</span>{% elif r.sql.result_type == 'decay' %}<span class="badge muted">DECAY</span>{% elif r.sql.result_type == 'draw' %}<span class="badge draw">DRAW</span>{% else %}{{ r.sql.winner }}{% if r.sql.result_type == 'forfeit' %} <span class="badge muted">FF</span>{% endif %}{% endif %}</td>
+        <td class="num">{{ (r.sql.duration_ms if r.sql else none)|ms }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {{ pager(paging, 'seeds.index') }}
+  {% else %}<p class="empty">No matches with this seed combination.</p>{% endif %}
+</section>
+{% endif %}
+{% endblock %}
+{% block scripts %}{% if charts %}{{ chart_scripts() }}{% endif %}{% endblock %}

@@ -1,0 +1,312 @@
+{% extends "base.html" %}
+{% from "_macros.html" import stat_grid, outcome_badge, elo_delta, match_type, match_link, chart, chart_scripts %}
+{% block head %}{% if running %}<meta http-equiv="refresh" content="5">{% endif %}{% endblock %}
+{% block title %}{{ player.nickname }}{% endblock %}
+{% block content %}
+<section class="card">
+  <div class="profile-head">
+    <div class="profile-id">
+      <div class="profile-avatar" aria-hidden="true">{{ player.nickname[:1]|upper }}</div>
+      <div style="min-width:0">
+        <h1>{{ player.nickname }}</h1>
+        <div class="profile-meta">
+          <span><strong>{{ player.current_elo if player.current_elo is not none else 'Unranked' }}</strong>{% if player.current_elo is not none %} Elo{% endif %}</span>
+          {% if player.elo_rank %}<span>Rank #{{ player.elo_rank }}</span>{% endif %}
+          {% if player.country %}<span>{{ player.country|upper }}</span>{% endif %}
+          {% if player.profile_status == 'full' %}<span class="badge accent">Full profile</span>{% else %}<span class="badge muted">Basic profile</span>{% endif %}
+        </div>
+        <div class="uuid">{{ player.uuid }}</div>
+      </div>
+    </div>
+    <div class="actions" style="display:flex; gap:8px; flex-wrap:wrap;">
+      <a class="btn secondary" href="{{ url_for('compare.index', a=player.uuid) }}">Compare</a>
+      {% if g.user %}
+        {% if bookmark %}
+          <a class="btn secondary" href="{{ url_for('bookmarks.index') }}">★ Bookmarked</a>
+        {% else %}
+          <form method="post" action="{{ url_for('bookmarks.create') }}">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <input type="hidden" name="uuid" value="{{ player.uuid }}">
+            <button class="btn secondary" type="submit">☆ Bookmark</button>
+          </form>
+        {% endif %}
+        <form method="post" action="{{ url_for('players.refresh', uuid=player.uuid) }}">
+          <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+          <button class="btn" type="submit" {% if running %}disabled{% endif %}>
+            {% if player.profile_status == 'full' %}Refresh{% else %}Load Full Profile{% endif %}</button>
+        </form>
+      {% else %}
+        <a class="btn" href="{{ url_for('auth.login', next=request.path) }}">Log In to {% if player.profile_status == 'full' %}Refresh{% else %}Load Full Profile{% endif %}</a>
+      {% endif %}
+    </div>
+  </div>
+
+  {% if player.profile_status != 'full' %}
+    <p class="flash info" style="margin:16px 0 0">Basic profile: this player hasn't been searched yet, so the stats below only cover matches against players who have been.</p>
+  {% endif %}
+  {% if latest_import %}
+    <div class="muted small" style="margin-top:14px">
+    {% if running %}
+      Importing match history… <strong>{{ latest_import.matches_seen }}</strong> matches so far (season {{ latest_import.current_season or '?' }}, working back to season 1). This page refreshes itself.
+      {% set top = seasons[0] if seasons else 1 %}
+      <div class="progress" aria-hidden="true"><span style="width: {{ ((top - (latest_import.current_season or top) + 1) / top * 100)|round|int }}%"></span></div>
+    {% elif latest_import.status == 'interrupted' %}
+      The last import was interrupted ({{ latest_import.matches_seen }} matches done). Press Refresh to resume.
+    {% elif latest_import.status == 'failed' %}
+      The last import failed. Press Refresh to try again.
+    {% else %}
+      {{ stored }} matches stored · last import {{ (latest_import.finished_at or latest_import.started_at).strftime('%Y-%m-%d %H:%M') }} UTC
+      {% if latest_import.matches_failed %}· {{ latest_import.matches_failed }} could not be stored{% endif %}
+    {% endif %}
+    </div>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-head">
+    <h2>{% if season is none %}Lifetime{% else %}Season {{ season }}{% endif %} Ranked Stats</h2>
+    <form class="inline" method="get" action="{{ url_for('players.profile', uuid=player.uuid) }}">
+      <label class="muted" for="season" style="margin:0">Scope</label>
+      <select id="season" name="season">
+        <option value="lifetime" {% if season is none %}selected{% endif %}>Lifetime</option>
+        {% for s in seasons %}<option value="{{ s }}" {% if season == s %}selected{% endif %}>Season {{ s }}</option>{% endfor %}
+      </select>
+      <button class="btn small secondary" type="submit">Apply</button>
+    </form>
+  </div>
+  {% if st and st.games_played %}
+    {{ stat_grid(st) }}
+    {% if fastest %}<p class="muted small" style="margin:14px 0 0">Fastest ranked win: <strong style="color:var(--ink)">{{ fastest.finish_time_ms|ms }}</strong>
+      (<a href="{{ url_for('matches.detail', match_id=fastest.match_id) }}">season {{ fastest.season_id }}</a>)</p>{% endif %}
+  {% else %}
+    <p class="empty">No ranked matches stored for this {% if season is none %}player{% else %}season{% endif %}. Win rate and forfeit rate: N/A.</p>
+  {% endif %}
+</section>
+
+<div class="split">
+  <section class="card">
+    <div class="card-head"><h2>Elo Over Time</h2><span class="hint">{% if season is none %}all seasons{% else %}season {{ season }}{% endif %} · ranked</span></div>
+    {% if elo %}{% set es = elo.summary %}
+      <div class="elo-facts">
+        <div><div class="label">Peak</div><div class="val">{{ es.peak.elo }}</div><div class="sub">{{ es.peak.at.strftime('%b %d, %Y') }}</div></div>
+        <div><div class="label">Biggest gain</div><div class="val"><a href="{{ url_for('matches.detail', match_id=es.gain.match_id) }}">{{ elo_delta(es.gain.change) }}</a></div><div class="sub">{{ es.gain.at.strftime('%b %d, %Y') }}</div></div>
+        <div><div class="label">Biggest loss</div><div class="val"><a href="{{ url_for('matches.detail', match_id=es.loss.match_id) }}">{{ elo_delta(es.loss.change) }}</a></div><div class="sub">{{ es.loss.at.strftime('%b %d, %Y') }}</div></div>
+        <div><div class="label">Deepest slump</div><div class="val">{{ elo_delta(es.drop.by) }}</div><div class="sub">below a season peak of {{ es.drop.from }}{% if es.drop.by %} · {{ es.drop.at.strftime('%b %Y') }}{% endif %}</div></div>
+      </div>
+      {% call chart('chart-elo', elo.chart, 'tall', 'Elo after each ranked match, with its ' ~ es.window ~ '-match moving average') %}
+        <table><thead><tr><th>Month</th><th class="num">Games</th><th class="num">Low</th><th class="num">High</th><th class="num">End</th></tr></thead>
+        <tbody>{% for m in elo.months %}<tr><td>{{ m.month }}</td><td class="num">{{ m.games }}</td><td class="num">{{ m.low }}</td><td class="num">{{ m.high }}</td><td class="num">{{ m.end }}</td></tr>{% endfor %}</tbody></table>
+      {% endcall %}
+    {% else %}<p class="empty">Not enough ranked matches with Elo data to draw a line.</p>{% endif %}
+  </section>
+  <section class="card">
+    <div class="card-head"><h2>Season Results</h2><span class="hint">from MCSR Ranked</span></div>
+    {% if season_results %}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Season</th><th class="num">Final</th><th class="num">Rank</th><th class="num">Peak</th></tr></thead>
+      <tbody>{% for r in season_results %}
+        <tr><td><a href="{{ url_for('players.profile', uuid=player.uuid, season=r.season_id) }}">S{{ r.season_id }}</a></td>
+          <td class="num">{{ r.final_elo if r.final_elo is not none else '–' }}</td>
+          <td class="num">{{ ('#' ~ r.final_rank) if r.final_rank is not none else '–' }}</td>
+          <td class="num">{{ r.highest_elo if r.highest_elo is not none else '–' }}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="empty">No season results stored.</p>{% endif %}
+  </section>
+</div>
+
+<section class="card">
+  <div class="card-head"><h2>End Game</h2>
+    {% if end and end.coverage.have %}<span class="hint">{{ end.coverage.have }} of {{ '{:,}'.format(end.coverage.total) }} ranked matches ({{ end.coverage.pct }}%) have timelines · {{ end.coverage.seasons_label }}</span>{% endif %}</div>
+  {% if end and end.kills and end.coverage.pct < 100 %}
+    <p class="flash info" style="margin:0 0 14px">Sample, not {% if season is none %}lifetime{% else %}the whole season{% endif %}: these stats cover only the ranked matches whose timelines have been loaded ({{ end.coverage.seasons_label }}), mostly the most recent ones.</p>
+  {% endif %}
+  {% if end and end.kills %}
+    <div class="grid stats4">
+      <div class="stat"><div class="label">Zero-cycle rate</div><div class="value">{{ end.zero_rate }}%</div>
+        <div class="sub">{{ end.zero }} of {{ end.kills }} dragon kills ≤ {{ end.cutoff_s }}s</div></div>
+      <div class="stat"><div class="label">Median dragon time</div><div class="value">{{ end.median_split|ms }}</div>
+        <div class="sub">from entering the End</div></div>
+      <div class="stat"><div class="label">Fastest zero cycle</div><div class="value">{{ end.best_zero|ms }}</div>
+        <div class="sub">entering the End → dragon dead</div></div>
+      <div class="stat"><div class="label">Died in the End</div><div class="value">{{ end.died_in_end_rate }}%</div>
+        <div class="sub">of End entries (often a failed bed attempt)</div></div>
+    </div>
+    <h3 style="margin-top:20px">Dragon time after entering the End</h3>
+    {% call chart('chart-dragon', end.chart, 'short', 'Histogram of time from entering the End to killing the dragon') %}
+      <table><thead><tr><th>Bin</th><th class="num">Dragon kills</th></tr></thead>
+      <tbody>{% for lbl in end.histogram.labels %}{% if end.histogram.counts[loop.index0] %}<tr><td>{{ lbl }}</td><td class="num">{{ end.histogram.counts[loop.index0] }}</td></tr>{% endif %}{% endfor %}</tbody></table>
+    {% endcall %}
+    {% if end.seasons|length > 1 %}
+    <details><summary>Zero-cycle rate by season</summary><div class="table-wrap">
+      <table><thead><tr><th>Season</th><th class="num">Dragon kills</th><th class="num">Zero cycles</th><th class="num">Rate</th></tr></thead>
+      <tbody>{% for r in end.seasons %}<tr><td>S{{ r.season }}</td><td class="num">{{ r.kills }}</td><td class="num">{{ r.zero }}</td><td class="num">{{ r.rate }}%</td></tr>{% endfor %}</tbody></table>
+    </div></details>
+    {% endif %}
+    <p class="muted small" style="margin:12px 0 0">A zero cycle is counted when the dragon dies within {{ end.cutoff_s }} seconds of first entering the End.
+      Failed attempts aren't labelled in the data, so this is the share of dragon kills that were zero cycles, not a true attempt success rate.</p>
+  {% elif end and not end.coverage.have %}
+    <p class="empty">Match timelines haven't been loaded for {% if season is none %}this player{% else %}season {{ season }}{% endif %} yet, so there are no End-game stats.</p>
+  {% elif end %}
+    <p class="empty">No dragon kills in the {{ end.coverage.have }} ranked matches with timelines{% if season is not none %} in season {{ season }}{% endif %}.</p>
+  {% else %}
+    <p class="empty">End-game stats need match timelines, which haven't been loaded for this player yet.</p>
+  {% endif %}
+</section>
+
+<section class="card" id="splits">
+  <div class="card-head"><h2>Splits</h2>
+    {% if splits and splits.rows %}<span class="hint">{{ splits.matches }} ranked matches with timelines · {{ splits.seasons_label }}</span>{% endif %}</div>
+  {% if splits and splits.rows %}
+    {% if end and end.coverage.pct is not none and end.coverage.pct < 100 %}
+      <p class="flash info" style="margin:0 0 14px">Sample, not {% if season is none %}lifetime{% else %}the whole season{% endif %}: only matches whose timelines have been loaded, mostly the most recent ones.</p>
+    {% endif %}
+    <div class="grid stats4">
+      <div class="stat"><div class="label">Matches analysed</div><div class="value">{{ splits.matches }}</div>
+        <div class="sub">ranked, with timelines</div></div>
+      <div class="stat"><div class="label">Median finish</div>
+        <div class="value">{{ splits.finish.median|ms if splits.finish else '–' }}</div>
+        <div class="sub">{% if splits.finish %}in {{ splits.finish.reached }} completed runs{% else %}no completed runs{% endif %}</div></div>
+      <div class="stat"><div class="label">Biggest gain</div>
+        <div class="value" style="font-size:1.1rem">{{ splits.best.label if splits.best else '–' }}</div>
+        <div class="sub">{% if splits.best %}<span class="pos">{{ '%.1f'|format(splits.best.gap_change|abs / 1000) }}s</span> gained on the way there{% else %}no stretch where you gain time{% endif %}</div></div>
+      <div class="stat"><div class="label">Biggest loss</div>
+        <div class="value" style="font-size:1.1rem">{{ splits.worst.label if splits.worst else '–' }}</div>
+        <div class="sub">{% if splits.worst %}<span class="neg">{{ '%.1f'|format(splits.worst.gap_change / 1000) }}s</span> lost on the way there{% else %}no stretch where you lose time{% endif %}</div></div>
+    </div>
+    <div class="table-wrap" style="margin-top:16px"><table>
+      <thead><tr><th>Milestone</th><th class="num">Reached</th><th class="num">Your median</th><th class="num">Middle 50%</th>
+        <th class="num">Opponents' median</th><th class="num">Gap</th><th class="num">Change</th></tr></thead>
+      <tbody>{% for r in splits.rows %}
+        <tr><td>{{ r.label }}</td>
+          <td class="num">{{ r.reached }} <span class="muted small">({{ r.reached_pct }}%)</span></td>
+          <td class="num">{{ r.median|ms }}</td>
+          <td class="num muted small">{% if r.q1 is not none %}{{ r.q1|ms }} – {{ r.q3|ms }}{% else %}–{% endif %}</td>
+          <td class="num">{{ r.opp_median|ms }}</td>
+          <td class="num">{% if r.gap is not none %}<span class="{{ 'pos' if r.gap < 0 else 'neg' if r.gap > 0 else '' }}"
+              title="Median of (you − opponent) over {{ r.paired }} matches where both reached it">{{ r.gap|gap }}</span>{% else %}–{% endif %}</td>
+          <td class="num">{% if r.gap_change is not none %}<span class="{{ 'pos' if r.gap_change < 0 else 'neg' if r.gap_change > 0 else '' }}">{{ r.gap_change|gap }}</span>{% else %}–{% endif %}</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    <p class="muted small" style="margin:12px 0 0">Times are from the start of the match. <b>Gap</b> is the median of
+      (your time − your opponent's) over the matches where you both reached the milestone: negative means you were ahead.
+      <b>Change</b> is how much the gap moved since the previous milestone, which shows where you win or lose time.
+      Finish has no gap: only one player finishes a match.</p>
+  {% elif splits %}
+    <p class="empty">Match timelines haven't been loaded for {% if season is none %}this player{% else %}season {{ season }}{% endif %} yet, so there are no split times.</p>
+  {% else %}
+    <p class="empty">Split times are unavailable right now.</p>
+  {% endif %}
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>Seed Types</h2>
+    {% if seed_types %}<span class="hint">{{ '{:,}'.format(seed_types.games) }} ranked games · {% if season is none %}all seasons{% else %}season {{ season }}{% endif %}</span>{% endif %}</div>
+  {% if seed_types %}
+    <div class="grid stats4">
+      {% for key, label in [('overworld', 'Best overworld'), ('nether', 'Best bastion')] %}{% set b = seed_types[key].best %}
+      <div class="stat"><div class="label">{{ label }}</div>
+        <div class="value" style="font-size:1.25rem">{{ nice(b.type) if b else '–' }}</div>
+        <div class="sub">{% if b %}{{ b.win_rate|rate }} win rate ({{ '%+.1f'|format(b.delta_pp) }} pp) · {{ b.games }} games{% else %}needs {{ seed_types.min_games }}+ games of one type{% endif %}</div></div>
+      {% endfor %}
+      <div class="stat"><div class="label">Overall win rate</div><div class="value">{{ seed_types.win_rate|rate }}</div>
+        <div class="sub">games with a known seed</div></div>
+      <div class="stat"><div class="label">Average win</div><div class="value">{{ seed_types.avg_ms|ms }}</div>
+        <div class="sub">completed ranked wins</div></div>
+    </div>
+    <div class="two-col" style="margin-top:20px">
+      {% for key, label in [('overworld', 'Overworld Structure'), ('nether', 'Bastion')] %}
+      <div>
+        <h3 style="margin-top:0">{{ label }}</h3>
+        {% call chart('chart-seed-' ~ key, seed_types[key].chart, 'short', 'Ranked win rate per ' ~ label|lower) %}
+          <table><thead><tr><th>{{ label }}</th><th class="num">Games</th><th class="num">Win rate</th><th class="num">±95%</th><th class="num">vs overall</th><th class="num">Avg win</th><th class="num">Fastest</th></tr></thead>
+          <tbody>{% for t in seed_types[key].types %}<tr><td>{{ nice(t.type) }}{% if t.small %} <span class="badge muted">small sample</span>{% endif %}</td>
+            <td class="num">{{ t.games }}</td><td class="num">{{ t.win_rate|rate }}</td><td class="num">{{ ('±%.1f'|format(t.margin_pp)) if t.margin_pp is not none else '–' }}</td>
+            <td class="num {{ 'pos' if t.delta_pp and t.delta_pp > 0 else 'neg' if t.delta_pp and t.delta_pp < 0 else '' }}">{{ '%+.1f'|format(t.delta_pp) if t.delta_pp is not none else '–' }} pp</td>
+            <td class="num">{{ t.avg_ms|ms }}</td><td class="num">{{ t.best_ms|ms }}</td></tr>{% endfor %}</tbody></table>
+        {% endcall %}
+      </div>
+      {% endfor %}
+    </div>
+    <p class="muted small" style="margin:12px 0 0">"Best" is the highest ranked win rate among types with at least {{ seed_types.min_games }} games. Both players get the same seed, so win rate shows where this player beats their opponents, rather than which seed types are fast for everyone (see <a href="{{ url_for('seeds.index') }}">Seed analysis</a> for that).
+      A gap smaller than a type's ±95% margin (in the data table) may just be chance.</p>
+  {% else %}
+    <p class="empty">No stored ranked matches with seed data for {% if season is none %}this player{% else %}season {{ season }}{% endif %}.</p>
+  {% endif %}
+</section>
+
+<div class="two-col">
+  <div class="stack">
+  <section class="card">
+    <div class="card-head"><h2>Win Rate by Season</h2><span class="hint">ranked · computed from stored matches</span></div>
+    {% if season_chart %}
+      {% call chart('chart-seasons', season_chart, '', 'Ranked win rate per season') %}
+        <table><thead><tr><th>Season</th><th class="num">Games</th><th class="num">W</th><th class="num">L</th><th class="num">D</th><th class="num">FF</th><th class="num">Win rate</th><th class="num">FF rate</th></tr></thead>
+        <tbody>{% for r in season_rows %}<tr><td>S{{ r.season_id }}</td><td class="num">{{ r.games_played }}</td><td class="num">{{ r.wins|int }}</td><td class="num">{{ r.losses|int }}</td><td class="num">{{ r.draws|int }}</td><td class="num">{{ r.forfeits|int }}</td><td class="num">{{ r.win_rate|rate }}</td><td class="num">{{ r.forfeit_rate|rate }}</td></tr>{% endfor %}</tbody></table>
+      {% endcall %}
+    {% else %}<p class="empty">No ranked matches stored yet.</p>{% endif %}
+  </section>
+  <section class="card">
+    <div class="card-head"><h2>Top Rivals</h2><span class="hint">most-played ranked opponents{% if season is not none %} · season {{ season }}{% endif %}</span></div>
+    {% if rivals %}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Opponent</th><th class="num">Games</th><th class="num">W–L–D</th><th class="num">Win rate</th><th></th></tr></thead>
+      <tbody>{% for r in rivals %}
+        <tr class="rowlink">
+          <td><a class="stretched matchup" href="{{ url_for('compare.index', a=player.uuid, b=r.uuid, season=season if season is not none else none) }}#h2h">{{ r.nickname }}</a>
+            <div class="muted small">last met {{ r.last_met.strftime('%b %d, %Y') }}</div></td>
+          <td class="num">{{ r.games }}</td>
+          <td class="num">{{ r.wins }}–{{ r.losses }}–{{ r.draws }}</td>
+          <td class="num"><strong>{{ r.win_rate|rate }}</strong></td>
+          <td class="chev" aria-hidden="true">›</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% elif rivals is none %}<p class="empty">Rivals are unavailable right now.</p>
+    {% else %}<p class="empty">No ranked opponents stored{% if season is not none %} for season {{ season }}{% endif %}.</p>{% endif %}
+  </section>
+  </div>
+  <section class="card">
+    <div class="card-head"><h2>Recent Matches</h2><a class="small" href="{{ url_for('matches.index', player=player.uuid) }}">All {{ stored }} →</a></div>
+    {% if recent %}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Match</th><th>Result</th><th class="num">Time</th><th class="num">Elo</th><th></th></tr></thead>
+      <tbody>{% for m in recent %}
+        <tr class="rowlink">
+          <td>
+            {%- if m.is_decayed %}{{ match_link(m.match_id, 'Inactivity decay', first_class='lost') }}
+            {%- else %}{{ match_link(m.match_id, second=m.opponent or '–', second_class='won', extra=m.n_players - 2) }}{% endif -%}
+            <div class="muted small">{{ match_type(m.match_type) }} · {{ m.played_at.strftime('%b %d, %H:%M') }}</div></td>
+          <td>{% if m.is_decayed %}<span class="badge muted">DECAY</span>{% else %}{{ outcome_badge(m.outcome, m.forfeited) }}{% endif %}</td>
+          <td class="num">{{ m.duration_ms|ms }}</td><td class="num">{{ elo_delta(m.elo_change) }}</td>
+          <td class="chev" aria-hidden="true">›</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="empty">No matches stored yet.</p>{% endif %}
+  </section>
+</div>
+
+{% set prof = doc.get('profile', {}) %}
+{% if prof %}
+<div class="two-col">
+  <section class="card">
+    <div class="card-head"><h2>Official API Totals</h2><span class="hint">as reported by MCSR Ranked</span></div>
+    {% set tot = prof.get('statistics', {}).get('total', {}) %}
+    <div class="table-wrap"><table>
+      <thead><tr><th></th><th class="num">Ranked</th><th class="num">Casual</th></tr></thead>
+      <tbody>
+      {% for key, label in [('playedMatches','Played'), ('wins','Wins'), ('loses','Losses'), ('forfeits','Forfeits'), ('completions','Completions'), ('highestWinStreak','Best streak')] %}
+        <tr><td>{{ label }}</td><td class="num">{{ tot.get(key, {}).get('ranked', '–') }}</td><td class="num">{{ tot.get(key, {}).get('casual', '–') }}</td></tr>
+      {% endfor %}
+        <tr><td>Best time</td><td class="num">{{ tot.get('bestTime', {}).get('ranked')|ms }}</td><td class="num">{{ tot.get('bestTime', {}).get('casual')|ms }}</td></tr>
+      </tbody>
+    </table></div>
+  </section>
+  <section class="card">
+    <div class="card-head"><h2>Achievements</h2><span class="hint">as reported by MCSR Ranked</span></div>
+    {% set ach = prof.get('achievements', {}).get('total', []) %}
+    <p class="muted" style="margin:0">{{ ach|length }} achievements earned.</p>
+  </section>
+</div>
+{% endif %}
+{% endblock %}
+{% block scripts %}{% if elo or season_chart or (end and end.chart) or seed_types %}{{ chart_scripts() }}{% endif %}{% endblock %}

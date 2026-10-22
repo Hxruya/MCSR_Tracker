@@ -1,0 +1,96 @@
+{% extends "base.html" %}
+{% from "_macros.html" import note_item %}
+{% block title %}My Account{% endblock %}
+{% block content %}
+<section class="card">
+  <div class="profile-head">
+    <div class="profile-id">
+      <div class="profile-avatar" aria-hidden="true">{{ user.username[:1]|upper }}</div>
+      <div style="min-width:0">
+        <h1>{{ user.username }}</h1>
+        <div class="profile-meta"><span>Member since {{ user.created_at.strftime('%b %d, %Y') }}</span></div>
+      </div>
+    </div>
+  </div>
+  <div class="grid stats4" style="margin-top:18px">
+    <a class="stat stat-link" href="{{ url_for('notes.index') }}"><div class="label">Match notes</div>
+      <div class="value">{{ notes.count if notes else '–' }}</div><div class="sub">private, on matches</div></a>
+    <a class="stat stat-link" href="{{ url_for('bookmarks.index') }}"><div class="label">Bookmarked players</div>
+      <div class="value">{{ n_bookmarks }}</div><div class="sub">followed from profiles</div></a>
+    <div class="stat"><div class="label">Tags used</div><div class="value">{{ notes.n_tags if notes else "–" }}</div>
+      <div class="sub">across your notes</div></div>
+    <div class="stat"><div class="label">Last note</div>
+      <div class="value" style="font-size:1.1rem">{{ notes.recent[0].updated_at.strftime('%b %d, %Y') if notes and notes.recent else '–' }}</div>
+      <div class="sub">most recent edit</div></div>
+  </div>
+</section>
+
+<div class="two-col">
+  <section class="card">
+    <div class="card-head"><h2>Recent Notes</h2><a class="small" href="{{ url_for('notes.index') }}">All Notes →</a></div>
+    {% if notes is none %}<p class="empty">Notes are unavailable right now.</p>
+    {% elif notes.recent %}
+      {% if notes.tags %}<div class="tagcloud" aria-label="Your tags" style="margin-bottom:12px">
+        {% for t in notes.tags %}<a class="tag" href="{{ url_for('notes.index', tag=t._id) }}">#{{ t._id }} <span>{{ t.n }}</span></a>{% endfor %}
+      </div>{% endif %}
+      <ul class="notes">
+        {% for n in notes.recent %}{% set m = notes.summaries.get(n.match_id) %}
+        {{ note_item(n, m, compact=True) }}
+        {% endfor %}
+      </ul>
+    {% else %}<p class="empty">No notes yet. Open any match and add one under "My Notes".</p>{% endif %}
+  </section>
+  <section class="card">
+    <div class="card-head"><h2>Bookmarked Players</h2><a class="small" href="{{ url_for('bookmarks.index') }}">All Bookmarks →</a></div>
+    {% if bookmarks %}
+    <div class="table-wrap"><table>
+      <thead><tr><th>Player</th><th class="num">Elo</th><th class="num">Win rate</th><th></th></tr></thead>
+      <tbody>{% for b in bookmarks %}
+        <tr class="rowlink">
+          <td><a class="stretched" href="{{ url_for('players.profile', uuid=b.uuid) }}">{{ b.nickname }}</a>
+            {% if b.note %}<div class="muted small">{{ b.note|truncate(60) }}</div>{% endif %}</td>
+          <td class="num">{{ b.current_elo if b.current_elo is not none else '–' }}</td>
+          <td class="num">{{ b.win_rate|rate }}</td>
+          <td class="chev" aria-hidden="true">›</td></tr>
+      {% endfor %}</tbody>
+    </table></div>
+    {% else %}<p class="empty">No bookmarks yet. <a href="{{ url_for('players.search') }}">Find a player</a> and press ☆ Bookmark.</p>{% endif %}
+  </section>
+</div>
+
+<section class="card" id="settings">
+  <div class="card-head"><h2>Settings</h2></div>
+  <div class="settings-grid">
+    <form method="post" action="{{ url_for('account.change_username') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <h3>Username</h3>
+      <div class="field"><label for="new-username">New username</label>
+        <input id="new-username" type="text" name="username" value="{{ user.username }}" required minlength="3"
+               maxlength="30" pattern="[A-Za-z0-9_]{3,30}" autocomplete="username">
+        <div class="help">3–30 letters, digits or underscores.</div></div>
+      <button class="btn secondary" type="submit">Change username</button>
+    </form>
+    <form method="post" action="{{ url_for('account.change_password') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <h3>Password</h3>
+      <div class="field"><label for="current">Current password</label>
+        <input id="current" type="password" name="current" required autocomplete="current-password"></div>
+      <div class="field"><label for="new-password">New password</label>
+        <input id="new-password" type="password" name="password" required minlength="8" autocomplete="new-password">
+        <div class="help">At least 8 characters.</div></div>
+      <div class="field"><label for="confirm">Confirm new password</label>
+        <input id="confirm" type="password" name="confirm" required minlength="8" autocomplete="new-password"></div>
+      <button class="btn secondary" type="submit">Change password</button>
+    </form>
+    <form method="post" action="{{ url_for('account.delete') }}">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <h3>Delete account</h3>
+      <p class="muted small" style="margin-top:0">Permanently deletes your account, your bookmarks and your match notes.
+        This can't be undone.</p>
+      <div class="field"><label for="delete-password">Password</label>
+        <input id="delete-password" type="password" name="password" required autocomplete="current-password"></div>
+      <button class="btn danger" type="submit">Delete my account</button>
+    </form>
+  </div>
+</section>
+{% endblock %}

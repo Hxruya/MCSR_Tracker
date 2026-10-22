@@ -1,0 +1,22 @@
+{% extends "base.html" %}
+{% block title %}Sign Up{% endblock %}
+{% block content %}
+<section class="card form-card">
+  <h1 style="font-size:1.4rem">Create an Account</h1>
+  <p class="muted small">Accounts let you bookmark players, keep notes and load new players from MCSR Ranked.</p>
+  <form method="post" action="{{ url_for('auth.register') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <div class="field"><label for="username">Username</label>
+      <input id="username" type="text" name="username" value="{{ username }}" required minlength="3" maxlength="30"
+             pattern="[A-Za-z0-9_]{3,30}" autocomplete="username">
+      <div class="help">3–30 letters, digits or underscores.</div></div>
+    <div class="field"><label for="password">Password</label>
+      <input id="password" type="password" name="password" required minlength="8" autocomplete="new-password">
+      <div class="help">At least 8 characters.</div></div>
+    <div class="field"><label for="confirm">Confirm password</label>
+      <input id="confirm" type="password" name="confirm" required minlength="8" autocomplete="new-password"></div>
+    <button class="btn" type="submit" style="width:100%; justify-content:center">Create Account</button>
+  </form>
+  <p class="muted small" style="margin:16px 0 0; text-align:center">Already have an account? <a href="{{ url_for('auth.login') }}">Log in</a></p>
+</section>
+{% endblock %}

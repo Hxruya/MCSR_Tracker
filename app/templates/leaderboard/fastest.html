@@ -1,0 +1,35 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pager %}
+{% block title %}Fastest Wins{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Fastest Wins</h1>
+    <p class="subtitle">Each player's best completed ranked win among stored matches. Forfeit wins and decay matches are excluded.</p>
+  </div>
+  <div class="actions"><a class="btn secondary" href="{{ url_for('leaderboard.index') }}">← Elo Leaderboard</a></div>
+</div>
+<section class="card">
+  <form class="filters" method="get" action="{{ url_for('leaderboard.fastest') }}">
+    <div><label for="season">Season</label>
+      <select id="season" name="season"><option value="lifetime">All seasons</option>
+        {% for s in seasons %}<option value="{{ s }}" {% if season == s %}selected{% endif %}>Season {{ s }}</option>{% endfor %}
+      </select></div>
+    <button class="btn secondary" type="submit">Show</button>
+  </form>
+</section>
+<section class="card">
+  {% if rows %}
+  <div class="table-wrap"><table>
+    <thead><tr><th style="width:3.5rem">#</th><th>Player</th><th class="num">Time</th><th>Season</th><th>Date (UTC)</th></tr></thead>
+    <tbody>{% for r in rows %}
+      <tr><td class="rank">{{ offset + loop.index }}</td>
+        <td><a href="{{ url_for('players.profile', uuid=r.uuid) }}">{{ r.nickname }}</a>{% if r.country %} <span class="muted small">{{ r.country|upper }}</span>{% endif %}</td>
+        <td class="num"><a href="{{ url_for('matches.detail', match_id=r.match_id) }}">{{ r.finish_time_ms|ms }}</a></td>
+        <td class="muted">S{{ r.season_id }}</td><td class="muted">{{ r.played_at.strftime('%Y-%m-%d') }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {{ pager(paging, 'leaderboard.fastest') }}
+  {% else %}<p class="empty">No completed ranked wins stored{% if season %} for season {{ season }}{% endif %}.</p>{% endif %}
+</section>
+{% endblock %}

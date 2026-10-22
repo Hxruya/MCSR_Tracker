@@ -1,0 +1,72 @@
+{% extends "base.html" %}
+{% from "_macros.html" import elo_delta %}
+{% block title %}Recent Form{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Recent Form</h1>
+    <p class="subtitle">Latest {{ window }} ranked matches compared with the {{ window }} before them (all seasons; decay matches excluded).</p>
+  </div>
+  <div class="actions"><a class="btn secondary" href="{{ url_for('compare.index') }}">← Compare Players</a></div>
+</div>
+
+<section class="card">
+  <form class="filters" method="get" action="{{ url_for('compare.form') }}">
+    <div><label for="a">Player</label><input id="a" type="text" name="a" value="{{ player.nickname if player else value }}" maxlength="40" placeholder="Nickname or UUID"></div>
+    <button class="btn" type="submit">Show Form</button>
+  </form>
+</section>
+
+{% if player %}
+<section class="card">
+  <div class="card-head">
+    <h2><a href="{{ url_for('players.profile', uuid=player.uuid) }}">{{ player.nickname }}</a></h2>
+    {% if total is not none %}<span class="hint">{{ total }} stored ranked matches</span>{% endif %}
+  </div>
+  {% if player.profile_status != 'full' %}<p class="flash info">Basic profile: only matches against searched players are stored.
+    <a href="{{ url_for('players.profile', uuid=player.uuid) }}">Load the full profile</a> for a true picture.</p>{% endif %}
+  {% if buckets is none %}
+    <p class="flash info">Insufficient history (need {{ 2 * window }}, have {{ total }}).</p>
+  {% else %}
+    {% set l, p = buckets.latest, buckets.previous %}
+    <div class="grid stats4" style="margin-bottom:20px">
+      {% set d = l.win_rate - p.win_rate if l.win_rate is not none and p.win_rate is not none else none %}
+      <div class="stat"><div class="label">Win rate, latest {{ window }}</div><div class="value">{{ l.win_rate|rate }}</div>
+        <div class="sub">{% if d is not none %}<span class="{{ 'pos' if d > 0 else 'neg' if d < 0 else '' }}">{{ '%+.2f'|format(d) }} %</span> {% endif %}vs previous {{ p.win_rate|rate }}</div></div>
+      {% set d2 = l.forfeit_rate - p.forfeit_rate %}
+      <div class="stat"><div class="label">Forfeit rate, latest {{ window }}</div><div class="value">{{ l.forfeit_rate|rate }}</div>
+        <div class="sub"><span class="{{ 'neg' if d2 > 0 else 'pos' if d2 < 0 else '' }}">{{ '%+.2f'|format(d2) }} %</span> vs previous {{ p.forfeit_rate|rate }}</div></div>
+      <div class="stat"><div class="label">Avg Elo change, latest</div><div class="value">{{ '%+.2f'|format(l.avg_elo) if l.avg_elo is not none else 'N/A' }}</div>
+        <div class="sub">previous {{ '%+.2f'|format(p.avg_elo) if p.avg_elo is not none else 'N/A' }}</div></div>
+      <div class="stat"><div class="label">Draws, latest</div><div class="value">{{ l.draws }}</div><div class="sub">previous {{ p.draws }}</div></div>
+    </div>
+
+    <h3>Match by Match</h3>
+    <div class="strip-label"><span>Previous {{ window }} · {{ p.first_at.strftime('%b %d') }} – {{ p.last_at.strftime('%b %d') }}</span><span>oldest → newest</span></div>
+    <div class="strip" role="list">{% for m in strip[:window] %}{% set k = {'win': 'W', 'loss': 'L', 'draw': 'D'}[m.outcome] %}
+      <a class="{{ k }}" role="listitem" href="{{ url_for('matches.detail', match_id=m.match_id) }}"
+         title="{{ m.played_at.strftime('%Y-%m-%d %H:%M') }} · {{ m.outcome }}{% if m.forfeited == 1 %} (forfeit){% endif %}{% if m.elo_change is not none %} · {{ '%+d'|format(m.elo_change) }} Elo{% endif %}">{{ k }}</a>{% endfor %}
+    </div>
+    <div class="strip-label"><span>Latest {{ window }} · {{ l.first_at.strftime('%b %d') }} – {{ l.last_at.strftime('%b %d') }}</span><span></span></div>
+    <div class="strip" role="list">{% for m in strip[window:] %}{% set k = {'win': 'W', 'loss': 'L', 'draw': 'D'}[m.outcome] %}
+      <a class="{{ k }}" role="listitem" href="{{ url_for('matches.detail', match_id=m.match_id) }}"
+         title="{{ m.played_at.strftime('%Y-%m-%d %H:%M') }} · {{ m.outcome }}{% if m.forfeited == 1 %} (forfeit){% endif %}{% if m.elo_change is not none %} · {{ '%+d'|format(m.elo_change) }} Elo{% endif %}">{{ k }}</a>{% endfor %}
+    </div>
+
+    <details><summary>Show data table</summary><div class="table-wrap">
+    <table>
+      <thead><tr><th></th><th class="num">Latest {{ window }}</th><th class="num">Previous {{ window }}</th></tr></thead>
+      <tbody>
+        <tr><td>Win rate</td><td class="num">{{ l.win_rate|rate }}</td><td class="num">{{ p.win_rate|rate }}</td></tr>
+        <tr><td>Forfeit rate</td><td class="num">{{ l.forfeit_rate|rate }}</td><td class="num">{{ p.forfeit_rate|rate }}</td></tr>
+        <tr><td>Wins / losses</td><td class="num">{{ l.wins }} / {{ l.losses }}</td><td class="num">{{ p.wins }} / {{ p.losses }}</td></tr>
+        <tr><td>Draws</td><td class="num">{{ l.draws }}</td><td class="num">{{ p.draws }}</td></tr>
+        <tr><td>Avg Elo change</td><td class="num">{{ '%+.2f'|format(l.avg_elo) if l.avg_elo is not none else 'N/A' }}</td><td class="num">{{ '%+.2f'|format(p.avg_elo) if p.avg_elo is not none else 'N/A' }}</td></tr>
+        <tr><td>Period (UTC)</td><td class="num">{{ l.first_at.strftime('%Y-%m-%d') }} → {{ l.last_at.strftime('%Y-%m-%d') }}</td><td class="num">{{ p.first_at.strftime('%Y-%m-%d') }} → {{ p.last_at.strftime('%Y-%m-%d') }}</td></tr>
+      </tbody>
+    </table></div></details>
+    <p class="muted small" style="margin-top:12px">Placement matches have no Elo change and are left out of the average.</p>
+  {% endif %}
+</section>
+{% endif %}
+{% endblock %}

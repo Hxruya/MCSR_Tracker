@@ -1,0 +1,21 @@
+{% extends "base.html" %}
+{% block title %}Edit Note{% endblock %}
+{% block content %}
+<section class="card form-card" style="max-width:560px">
+  <h1 style="font-size:1.35rem">Edit Note</h1>
+  <p class="muted small"><a href="{{ url_for('matches.detail', match_id=note.match_id) }}">Match #{{ note.match_id }}</a></p>
+  <form method="post" action="{{ url_for('notes.edit', note_id=note._id) }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    <input type="hidden" name="back" value="{{ url_for('notes.index') }}">
+    <div class="field"><label for="text">Note</label>
+      <textarea id="text" name="text" rows="4" maxlength="500" required style="width:100%">{{ note.text }}</textarea></div>
+    <div class="field"><label for="tags">Tags</label>
+      <input id="tags" type="text" name="tags" value="{{ note.tags_raw }}" maxlength="200" style="width:100%" placeholder="e.g. good zero, bastion route">
+      <div class="help">Comma-separated, up to 8.</div></div>
+    <div style="display:flex; gap:8px">
+      <button class="btn" type="submit">Save</button>
+      <a class="btn ghost" href="{{ url_for('notes.index') }}">Cancel</a>
+    </div>
+  </form>
+</section>
+{% endblock %}

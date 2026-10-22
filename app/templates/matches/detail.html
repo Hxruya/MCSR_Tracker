@@ -1,0 +1,157 @@
+{% extends "base.html" %}
+{% from "_macros.html" import outcome_badge, elo_delta, match_type %}
+{% set duel = participants|length == 2 %}
+{% block title %}{% if duel %}{{ participants[0].nickname }} vs {{ participants[1].nickname }}{% else %}Match {{ match.match_id }}{% endif %}{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <div class="eyebrow">{{ match_type(match.match_type) }} match · {{ match.season_label }} · {{ match.played_at.strftime('%d %b %Y, %H:%M') }} UTC</div>
+    {% if match.is_decayed %}
+      <h1>{{ participants[0].nickname if participants else 'Player' }} · Inactivity Decay</h1>
+      <p class="subtitle">An Elo penalty for inactivity, not a real game.</p>
+    {% elif duel %}
+      <h1>{{ participants[0].nickname }} <span class="muted" style="font-weight:500">vs</span> {{ participants[1].nickname }}</h1>
+      <p class="subtitle">{% if match.result_type == 'draw' %}Draw: neither player finished.
+        {% elif match.result_type == 'forfeit' %}{{ match.winner }} won by forfeit at {{ match.duration_ms|ms }}.
+        {% else %}{{ match.winner }} won in {{ match.duration_ms|ms }}.{% endif %}</p>
+    {% else %}
+      <h1>{{ match_type(match.match_type) }} Room · {{ participants|length }} Players</h1>
+      <p class="subtitle">{% if match.winner %}{{ match.winner }} won{% if match.result_type == 'forfeit' %} by forfeit{% endif %} in {{ match.duration_ms|ms }}.{% else %}No winner.{% endif %}</p>
+    {% endif %}
+  </div>
+  <div class="actions"><a class="btn secondary" href="{{ request.referrer if request.referrer and request.referrer.startswith(request.host_url) else url_for('matches.index') }}">← Back</a></div>
+</div>
+
+{% if duel and not match.is_decayed %}
+<div class="versus">
+  {% for p in participants %}
+  <section class="card player-card {{ p.outcome }}">
+    <div class="pc-head">
+      <span class="profile-avatar small" aria-hidden="true">{{ p.nickname[:1]|upper }}</span>
+      <div style="min-width:0">
+        <a class="pc-name" href="{{ url_for('players.profile', uuid=p.uuid) }}">{{ p.nickname }}</a>
+        <div class="muted small">{{ (p.country or '')|upper }}</div>
+      </div>
+      <span style="margin-left:auto">{{ outcome_badge(p.outcome, p.forfeited) }}</span>
+    </div>
+    <div class="grid" style="grid-template-columns: repeat(3, minmax(0, 1fr)); margin-top:14px">
+      <div class="stat"><div class="label">Elo</div><div class="value" style="font-size:1.2rem">{{ p.elo_before if p.elo_before is not none else '–' }}{% if p.elo_after is not none %} → {{ p.elo_after }}{% endif %}</div></div>
+      <div class="stat"><div class="label">Change</div><div class="value" style="font-size:1.2rem">{{ elo_delta(p.elo_change) }}</div></div>
+      <div class="stat"><div class="label">Finish</div><div class="value" style="font-size:1.2rem">{{ p.finish_time_ms|ms }}</div></div>
+    </div>
+  </section>
+  {% endfor %}
+</div>
+{% else %}
+<section class="card">
+  <div class="card-head"><h2>Players</h2></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Player</th><th>Result</th><th class="num">Elo before</th><th class="num">Change</th><th class="num">Elo after</th><th class="num">Finish time</th></tr></thead>
+    <tbody>{% for p in participants %}
+      <tr><td><a href="{{ url_for('players.profile', uuid=p.uuid) }}">{{ p.nickname }}</a>{% if p.country %} <span class="muted small">{{ p.country|upper }}</span>{% endif %}</td>
+        <td>{{ outcome_badge(p.outcome, p.forfeited) }}</td>
+        <td class="num">{{ p.elo_before if p.elo_before is not none else '–' }}</td>
+        <td class="num">{{ elo_delta(p.elo_change) }}</td>
+        <td class="num">{{ p.elo_after if p.elo_after is not none else '–' }}</td>
+        <td class="num">{{ p.finish_time_ms|ms }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+</section>
+{% endif %}
+
+{% if splits %}
+<section class="card">
+  <div class="card-head"><h2>Splits</h2><span class="hint">time each player first reached each milestone · faster in bold</span></div>
+  <div class="table-wrap"><table>
+    <thead><tr><th>Milestone</th>{% for p in participants %}<th class="num">{{ p.nickname }}</th>{% endfor %}</tr></thead>
+    <tbody>{% for r in splits %}
+      <tr><td>{{ r.label }}</td>
+        {% for c in r.cells %}<td class="num">{% if r.count %}{{ c.n }}{% elif c.ms is none %}<span class="muted">–</span>{% elif c.best %}<strong class="best">{{ c.ms|ms }}</strong>{% else %}{{ c.ms|ms }}{% endif %}</td>{% endfor %}</tr>
+    {% endfor %}</tbody>
+  </table></div>
+</section>
+{% endif %}
+
+<div class="two-col">
+  <section class="card">
+    <div class="card-head"><h2>Seed</h2></div>
+    {% if doc is none %}
+      <p class="empty">Seed details unavailable.</p>
+    {% elif not doc.seed or (not doc.seed.overworld and not doc.seed.nether) %}
+      <p class="empty">This match did not use a ranked seed.</p>
+    {% else %}
+      <div class="grid" style="grid-template-columns: 1fr 1fr">
+        <div class="stat"><div class="label">Overworld</div><div class="value" style="font-size:1.15rem"><a href="{{ url_for('seeds.index', overworld=doc.seed.overworld) }}">{{ nice(doc.seed.overworld) }}</a></div></div>
+        <div class="stat"><div class="label">Bastion</div><div class="value" style="font-size:1.15rem">{% if doc.seed.nether %}<a href="{{ url_for('seeds.index', nether=doc.seed.nether) }}">{{ nice(doc.seed.nether) }}</a>{% else %}–{% endif %}</div></div>
+      </div>
+      {% if doc.seed.endTowers %}<p class="muted small" style="margin:12px 0 4px">End towers: {{ doc.seed.endTowers|join(', ') }}</p>{% endif %}
+      {% if doc.seed.variations %}<div style="display:flex; flex-wrap:wrap; gap:6px; margin-top:8px">
+        {% for v in doc.seed.variations|unique %}<span class="badge muted">{{ v.split(':')[1:]|join(' ')|replace('_', ' ') }}</span>{% endfor %}</div>{% endif %}
+    {% endif %}
+  </section>
+  <section class="card">
+    <div class="card-head"><h2>Videos</h2></div>
+    {% if videos %}
+      <ul class="list">{% for v in videos %}
+        <li><span class="badge accent">VOD</span><a class="grow" href="{{ v.url }}{% if v.offset %}?t={{ v.offset }}{% endif %}" target="_blank" rel="noopener noreferrer">Watch on Twitch</a>
+          {% if v.offset %}<span class="muted small">from {{ v.offset }}</span>{% endif %}</li>
+      {% endfor %}</ul>
+    {% elif doc is none %}<p class="empty">Video links unavailable.</p>
+    {% else %}<p class="empty">No public stream recording for this match.</p>{% endif %}
+  </section>
+</div>
+
+<section class="card" id="notes" style="margin-top:20px">
+  <div class="card-head"><h2>My Notes</h2>{% if g.user %}<a class="small" href="{{ url_for('notes.index') }}">All My Notes →</a>{% endif %}</div>
+  {% if g.user %}
+    {% if my_notes %}
+    <ul class="notes">{% for n in my_notes %}
+      <li class="note">
+        <p class="note-text">{{ n.text }}</p>
+        <div class="note-foot">
+          <div>{% for t in n.tags %}<a class="tag" href="{{ url_for('notes.index', tag=t) }}">#{{ t }}</a>{% endfor %}
+            <span class="muted small">{{ n.updated_at.strftime('%b %d, %H:%M') }}</span></div>
+          <div class="nowrap">
+            <a class="btn small secondary" href="{{ url_for('notes.edit', note_id=n._id) }}">Edit</a>
+            <form method="post" action="{{ url_for('notes.delete', note_id=n._id) }}" style="display:inline">
+              <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+              <input type="hidden" name="back" value="{{ url_for('matches.detail', match_id=match.match_id) }}#notes">
+              <button class="btn small danger" type="submit">Delete</button>
+            </form>
+          </div>
+        </div>
+      </li>{% endfor %}
+    </ul>
+    {% endif %}
+    <form method="post" action="{{ url_for('notes.create', match_id=match.match_id) }}" class="note-form">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <div class="field" style="flex:2; min-width:240px"><label for="note-text">Add a note</label>
+        <textarea id="note-text" name="text" rows="2" maxlength="500" required style="width:100%" placeholder="What happened in this match?"></textarea></div>
+      <div class="field" style="flex:1; min-width:180px"><label for="note-tags">Tags</label>
+        <input id="note-tags" type="text" name="tags" maxlength="200" style="width:100%" placeholder="good zero, bastion route"></div>
+      <button class="btn" type="submit" style="align-self:flex-end; margin-bottom:14px">Save Note</button>
+    </form>
+  {% else %}
+    <p class="empty"><a href="{{ url_for('auth.login', next=request.path) }}">Log in</a> to keep private notes and tags on matches.</p>
+  {% endif %}
+</section>
+<section class="card" id="timeline" style="margin-top:20px">
+  <div class="card-head"><h2>Event Log</h2>{% if timeline %}<span class="hint">{{ timeline|length }} events</span>{% endif %}</div>
+  {% if timeline %}
+    <details><summary>Show every event</summary>
+      <div class="table-wrap"><table>
+        <thead><tr><th class="num" style="width:7rem">Time</th><th>Player</th><th>Event</th></tr></thead>
+        <tbody>{% for t in timeline %}<tr><td class="num">{{ t.time|ms }}</td><td>{{ t.who }}</td><td>{{ t.event }}</td></tr>{% endfor %}</tbody>
+      </table></div>
+    </details>
+  {% elif match.is_decayed %}<p class="empty">Decay matches have no events.</p>
+  {% elif doc is none %}<p class="empty">The event log isn't available right now. Try again later.</p>
+  {% elif g.user %}
+    <form method="post" action="{{ url_for('matches.load_timeline_now', match_id=match.match_id) }}" class="inline">
+      <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+      <span class="muted">This match's timeline (splits and every event) hasn't been loaded yet.</span>
+      <button class="btn small" type="submit">Load timeline</button>
+    </form>
+  {% else %}<p class="empty">This match's timeline hasn't been loaded yet. <a href="{{ url_for('auth.login', next=request.path) }}">Log in</a> to load it from MCSR Ranked.</p>{% endif %}
+</section>
+{% endblock %}

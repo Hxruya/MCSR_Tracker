@@ -1,0 +1,94 @@
+{% extends "base.html" %}
+{% block title %}Home{% endblock %}
+{% block header_search %}{% endblock %}{# the hero has the search; no second box in the header #}
+{% block content %}
+<section class="home-hero">
+  <div class="home-hero-main">
+    <h1>Look up any MCSR Ranked player</h1>
+    <p class="lede">See their Elo over time, win rate by season, biggest rivals and the seeds they win on.</p>
+    <form class="searchbar" method="get" action="{{ url_for('players.search') }}" role="search">
+      <label for="q" class="sr-only">Player nickname or UUID</label>
+      <input id="q" type="search" name="q" placeholder="Nickname, e.g. edcr" required maxlength="40" autocomplete="off" autofocus>
+      <button class="btn" type="submit">Look up</button>
+    </form>
+    {% if suggestions %}
+    <p class="try">Try
+      {% for p in suggestions %}<a class="chip" href="{{ url_for('players.profile', uuid=p.uuid) }}">{{ p.nickname }}</a>{% endfor %}
+    </p>
+    {% endif %}
+    <p class="hint">{% if g.user %}Not stored yet? Search, then press Load to fetch them from MCSR Ranked.
+      {% else %}<a href="{{ url_for('auth.login') }}">Log in</a> to load players who aren't stored yet.{% endif %}</p>
+  </div>
+
+  {% if record %}
+  <a class="record" href="{{ url_for('matches.detail', match_id=record.match_id) }}" aria-label="Fastest stored ranked win: {{ record.nickname }}, {{ record.finish_time_ms|ms }}, season {{ record.season_id }}. Open the match.">
+    <span class="record-label">Fastest stored ranked win</span>
+    <span class="record-time">{{ record.finish_time_ms|ms }}</span>
+    <span class="record-who"><strong>{{ record.nickname }}</strong> in season {{ record.season_id }}</span>
+    <span class="record-cta">Open the match</span>
+  </a>
+  {% endif %}
+</section>
+
+<p class="dataset">{{ '{:,}'.format(counts.matches) }} matches from {{ '{:,}'.format(counts.players) }} players{% if counts.latest_match %}, latest on {{ counts.latest_match.strftime('%d %b %Y') }}{% endif %}.</p>
+
+{% set sp = spotlight %}
+<section class="questions" aria-label="Things you can find out">
+  {% if sp.rivalry %}{% set r = sp.rivalry %}{% set s = r.s %}
+  <a class="question" href="{{ url_for('compare.index', a=r.a.uuid, b=r.b.uuid) }}#h2h">
+    <h2>Who leads a rivalry?</h2>
+    <p>{{ r.a.nickname }} and {{ r.b.nickname }} have met {{ s.games }} times in ranked.</p>
+    <div class="mini-score">
+      <span class="who">{{ r.a.nickname }} <b>{{ s.a_wins }}</b></span>
+      <span class="bar" aria-hidden="true">
+        {% if s.a_wins %}<span style="flex:{{ s.a_wins }}; background:var(--series-1)"></span>{% endif %}
+        {% if s.draws %}<span style="flex:{{ s.draws }}; background:var(--status-neutral)"></span>{% endif %}
+        {% if s.b_wins %}<span style="flex:{{ s.b_wins }}; background:var(--series-2)"></span>{% endif %}
+      </span>
+      <span class="who right"><b>{{ s.b_wins }}</b> {{ r.b.nickname }}</span>
+    </div>
+    <span class="go">Compare any two players</span>
+  </a>
+  {% endif %}
+  {% if sp.combo %}{% set c = sp.combo %}
+  <a class="question" href="{{ url_for('seeds.index') }}">
+    <h2>Which seeds are won fastest?</h2>
+    <p><strong>{{ c.overworld|replace('_', ' ')|title }} + {{ c.nether|replace('_', ' ')|title }}</strong>, averaging {{ c.avg_ms|ms }} over {{ '{:,}'.format(c.wins) }} wins.</p>
+    <span class="go">See every combination</span>
+  </a>
+  {% endif %}
+  {% if sp.form_player %}
+  <a class="question" href="{{ url_for('compare.form', a=sp.form_player.uuid) }}">
+    <h2>Is a player on form?</h2>
+    <p>Compare anyone's last 20 ranked matches with the 20 before, starting with {{ sp.form_player.nickname }}.</p>
+    <span class="go">Check recent form</span>
+  </a>
+  {% endif %}
+</section>
+
+<div class="two-col">
+  <section class="card">
+    <div class="card-head"><h2>Top of the Leaderboard</h2><a class="small" href="{{ url_for('leaderboard.index') }}">Full Leaderboard</a></div>
+    {% if top %}
+    <ul class="list">{% for r in top %}
+      <li><span class="rank" style="width:2.2rem">#{{ r.rank }}</span>
+        {% if r.stored %}<a class="grow" href="{{ url_for('players.profile', uuid=r.uuid) }}">{{ r.nickname }}</a>
+        {% else %}<span class="grow">{{ r.nickname }}</span>{% endif %}
+        <span class="muted small">{{ (r.country or '')|upper }}</span><span class="val">{{ r.elo }}</span></li>
+    {% endfor %}</ul>
+    {% elif top is none %}<p class="empty">The MCSR Ranked leaderboard can't be reached right now.</p>
+    {% else %}<p class="empty">No ranked players this season yet.</p>{% endif %}
+  </section>
+  <section class="card">
+    <div class="card-head"><h2>Recently Searched</h2><a class="small" href="{{ url_for('players.search') }}">All Players</a></div>
+    {% if recent %}
+    <ul class="list">{% for p in recent %}
+      <li><span class="avatar" aria-hidden="true">{{ p.nickname[:1] }}</span>
+        <a class="grow" href="{{ url_for('players.profile', uuid=p.uuid) }}">{{ p.nickname }}</a>
+        <span class="muted small">{{ p.games_played }} games · {{ p.win_rate|rate }}</span>
+        <span class="val">{{ p.current_elo if p.current_elo is not none else '–' }}</span></li>
+    {% endfor %}</ul>
+    {% else %}<p class="empty">Nobody has been looked up yet. Search for a player above.</p>{% endif %}
+  </section>
+</div>
+{% endblock %}

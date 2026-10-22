@@ -1,0 +1,43 @@
+{% extends "base.html" %}
+{% from "_macros.html" import pager %}
+{% block title %}Elo Leaderboard{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>Elo Leaderboard</h1>
+    <p class="subtitle">The official MCSR Ranked leaderboard{% if board %} for season {{ board.season }}, updated
+      {{ board.fetched_at.strftime('%H:%M:%S') }} UTC{% endif %}. Ties share a rank.</p>
+  </div>
+  <div class="actions"><a class="btn secondary" href="{{ url_for('leaderboard.fastest') }}">Fastest Wins →</a></div>
+</div>
+<section class="card">
+  <form class="inline" method="get" action="{{ url_for('leaderboard.index') }}" style="margin-bottom:14px">
+    <label class="muted" for="season" style="margin:0">Season</label>
+    <select id="season" name="season">
+      <option value="" {% if season is none %}selected{% endif %}>Current</option>
+      {% for s in seasons %}<option value="{{ s }}" {% if season == s %}selected{% endif %}>Season {{ s }}</option>{% endfor %}
+    </select>
+    <button class="btn small secondary" type="submit">Apply</button>
+  </form>
+  {% if rows %}
+  <div class="table-wrap"><table>
+    <thead><tr><th style="width:4rem">Rank</th><th>Player</th><th>Country</th><th class="num">Elo</th><th class="num">Peak</th></tr></thead>
+    <tbody>{% for r in rows %}
+      <tr><td class="rank">#{{ r.rank }}</td>
+        <td>{% if r.stored %}<a href="{{ url_for('players.profile', uuid=r.uuid) }}">{{ r.nickname }}</a>{% if r.stored == 'full' %} <span class="badge accent">Full</span>{% endif %}
+          {%- else %}{{ r.nickname }}{% if g.user %}
+          <form method="post" action="{{ url_for('players.load') }}" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}"><input type="hidden" name="q" value="{{ r.uuid }}">
+            <button class="btn small ghost" type="submit">Load</button></form>{% endif %}{% endif %}</td>
+        <td class="muted">{{ (r.country or '–')|upper }}</td><td class="num"><strong>{{ r.elo if r.elo is not none else '–' }}</strong></td>
+        <td class="num muted">{{ r.peak if r.peak is not none else '–' }}</td></tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {{ pager(paging, 'leaderboard.index') }}
+  {% elif board %}
+  <p class="empty">MCSR Ranked has no ranked players for this season.</p>
+  {% elif not invalid %}
+  <p class="empty">The MCSR Ranked leaderboard can't be reached right now. Try again in a minute.</p>
+  {% endif %}
+</section>
+{% endblock %}

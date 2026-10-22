@@ -1,0 +1,77 @@
+{% extends "base.html" %}
+{% from "_macros.html" import outcome_badge, elo_delta, match_type, pager, match_link %}
+{% block title %}Match History{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>{% if f.player %}{{ f.player.nickname }}'s Matches{% else %}Match History{% endif %}</h1>
+    <p class="subtitle">Every stored match, newest first. Dates are UTC; “Forfeit” means the selected player forfeited.</p>
+  </div>
+  {% if f.player %}<div class="actions"><a class="btn secondary" href="{{ url_for('players.profile', uuid=f.player.uuid) }}">← Profile</a></div>{% endif %}
+</div>
+<section class="card">
+  <form class="filters" method="get" action="{{ url_for('matches.index') }}">
+    <div><label for="player">Player (nickname or UUID)</label>
+      <input id="player" type="text" name="player" value="{{ f.player.nickname if f.player else request.args.get('player', '') }}" maxlength="40"></div>
+    {# (n) = matches you'd get by choosing that option with the other filters unchanged (MongoDB $facet) #}
+    {% macro n(value) %}{% if counts %} ({{ '{:,}'.format(value or 0) }}){% endif %}{% endmacro %}
+    <div><label for="season">Season</label>
+      <select id="season" name="season"><option value="">All{{ n(counts.season.values()|sum if counts else 0) }}</option>
+        {% for s in seasons %}<option value="{{ s }}" {% if f.season == s %}selected{% endif %}>{{ s }}{{ n(counts.season.get(s) if counts else 0) }}</option>{% endfor %}
+      </select></div>
+    <div><label for="type">Type</label>
+      <select id="type" name="type">{% for t, code in types.items() %}<option value="{{ t }}" {% if f.type == t %}selected{% endif %}>{{ t|capitalize }}{{ n((counts.type.values()|sum) if code is none else counts.type.get(code)) if counts }}</option>{% endfor %}</select></div>
+    <div><label for="result">Result</label>
+      <select id="result" name="result"><option value="">Any{{ n(counts.result['']) if counts and counts.result }}</option>
+        {% for r in results %}<option value="{{ r }}" {% if f.result == r %}selected{% endif %}>{{ r|capitalize }}{{ n(counts.result[r]) if counts and counts.result }}</option>{% endfor %}
+      </select></div>
+    <div><label for="from">From</label><input id="from" type="date" name="from" value="{{ f['from'] or '' }}"></div>
+    <div><label for="to">To</label><input id="to" type="date" name="to" value="{{ f.to or '' }}"></div>
+    <button class="btn" type="submit">Filter</button>
+    <a class="btn ghost" href="{{ url_for('matches.index') }}">Reset</a>
+  </form>
+</section>
+
+<section class="card">
+  <div class="card-head"><h2>Results</h2><span class="hint">{{ '{:,}'.format(paging.total) }} matches</span></div>
+  {% if rows %}
+  <div class="table-wrap"><table>
+    <thead><tr>
+      <th>Match</th><th>Result</th>
+      {% if f.player %}<th class="num">Elo</th><th class="num">Elo after</th>{% endif %}
+      <th class="num">Time</th><th>Type</th><th>Date (UTC)</th><th></th>
+    </tr></thead>
+    <tbody>
+    {% for m in rows %}
+      <tr class="rowlink">
+        <td>
+          {%- if m.is_decayed -%}
+            {{ match_link(m.match_id, f.player.nickname if f.player else (m.names[0] if m.names else '–'), 'inactivity decay', first_class=None, sep='·') }}
+          {%- elif f.player -%}
+            {{ match_link(m.match_id, f.player.nickname, m.opponent or '–', m.n_players - 2, first_class='me') }}
+          {%- else -%}
+            {{ match_link(m.match_id, m.names[0] if m.names else '–', m.names[1] if m.names|length > 1 else none, m.n_players - 2) }}
+          {%- endif -%}
+        </td>
+        {% if f.player %}
+          <td>{% if m.is_decayed %}<span class="badge muted">DECAY</span>{% else %}{{ outcome_badge(m.outcome, m.forfeited) }}{% endif %}</td>
+          <td class="num">{{ elo_delta(m.elo_change) }}</td>
+          <td class="num">{{ (m.elo_before + m.elo_change) if m.elo_change is not none and m.elo_before is not none else '–' }}</td>
+        {% else %}
+          <td>{% if m.is_decayed %}<span class="badge muted">DECAY</span>{% elif m.result_type == 'draw' %}<span class="badge draw">DRAW</span>
+              {% else %}<span class="small muted">{{ m.winner }} won{% if m.result_type == 'forfeit' %} (FF){% endif %}</span>{% endif %}</td>
+        {% endif %}
+        <td class="num">{{ m.duration_ms|ms }}</td>
+        <td class="muted">{{ match_type(m.match_type) }} · S{{ m.season_id }}</td>
+        <td class="muted nowrap">{{ m.played_at.strftime('%b %d, %Y %H:%M') }}</td>
+        <td class="chev" aria-hidden="true">›</td>
+      </tr>
+    {% endfor %}
+    </tbody>
+  </table></div>
+  {{ pager(paging, 'matches.index') }}
+  {% else %}
+  <p class="empty">No matches match these filters.</p>
+  {% endif %}
+</section>
+{% endblock %}

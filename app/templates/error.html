@@ -1,0 +1,10 @@
+{% extends "base.html" %}
+{% block title %}Error {{ code }}{% endblock %}
+{% block content %}
+<section class="hero">
+  <div class="eyebrow">Error {{ code }}</div>
+  <h1>{% if code == 404 %}Nothing here{% elif code == 400 %}That didn't work{% else %}Something broke{% endif %}</h1>
+  <p>{{ message }}</p>
+  <a class="btn" href="{{ url_for('index') }}">Back to Home</a>
+</section>
+{% endblock %}

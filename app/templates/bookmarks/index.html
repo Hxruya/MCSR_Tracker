@@ -1,0 +1,37 @@
+{% extends "base.html" %}
+{% block title %}My Bookmarks{% endblock %}
+{% block content %}
+<div class="page-head">
+  <div>
+    <h1>My Bookmarks</h1>
+    <p class="subtitle">Bookmark players from their profile page. Only you can see your bookmarks and notes.</p>
+  </div>
+  <div class="actions"><a class="btn secondary" href="{{ url_for('players.search') }}">Find a Player</a></div>
+</div>
+<section class="card">
+  {% if rows %}
+  <div class="table-wrap"><table>
+    <thead><tr><th>Player</th><th class="num">Elo</th><th class="num">Ranked games</th><th class="num">Win rate</th><th>Note</th><th>Added</th><th></th></tr></thead>
+    <tbody>{% for b in rows %}
+      <tr>
+        <td><a href="{{ url_for('players.profile', uuid=b.uuid) }}">{{ b.nickname }}</a>{% if b.country %} <span class="muted small">{{ b.country|upper }}</span>{% endif %}</td>
+        <td class="num">{{ b.current_elo if b.current_elo is not none else '–' }}</td>
+        <td class="num">{{ b.games_played }}</td>
+        <td class="num">{{ b.win_rate|rate }}</td>
+        <td>{% if b.note %}{{ b.note }}{% else %}<span class="muted">–</span>{% endif %}</td>
+        <td class="muted nowrap">{{ b.created_at.strftime('%Y-%m-%d') }}</td>
+        <td class="nowrap" style="text-align:right">
+          <a class="btn small secondary" href="{{ url_for('bookmarks.edit', bookmark_id=b.bookmark_id) }}">Edit Note</a>
+          <form method="post" action="{{ url_for('bookmarks.delete', bookmark_id=b.bookmark_id) }}" style="display:inline">
+            <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+            <button class="btn small danger" type="submit">Remove</button>
+          </form>
+        </td>
+      </tr>
+    {% endfor %}</tbody>
+  </table></div>
+  {% else %}
+  <p class="empty">No bookmarks yet. <a href="{{ url_for('players.search') }}">Find a player</a> and press ☆ Bookmark.</p>
+  {% endif %}
+</section>
+{% endblock %}

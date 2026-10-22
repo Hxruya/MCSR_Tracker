@@ -1,0 +1,18 @@
+{% extends "base.html" %}
+{% block title %}Log In{% endblock %}
+{% block content %}
+<section class="card form-card">
+  <h1 style="font-size:1.4rem">Welcome back</h1>
+  <p class="muted small">Log in to bookmark players and load new ones from MCSR Ranked.</p>
+  <form method="post" action="{{ url_for('auth.login') }}">
+    <input type="hidden" name="csrf_token" value="{{ csrf_token() }}">
+    {% if next %}<input type="hidden" name="next" value="{{ next }}">{% endif %}
+    <div class="field"><label for="username">Username</label>
+      <input id="username" type="text" name="username" value="{{ username }}" required autocomplete="username" maxlength="30"></div>
+    <div class="field"><label for="password">Password</label>
+      <input id="password" type="password" name="password" required autocomplete="current-password"></div>
+    <button class="btn" type="submit" style="width:100%; justify-content:center">Log In</button>
+  </form>
+  <p class="muted small" style="margin:16px 0 0; text-align:center">No account? <a href="{{ url_for('auth.register') }}">Sign up</a></p>
+</section>
+{% endblock %}
