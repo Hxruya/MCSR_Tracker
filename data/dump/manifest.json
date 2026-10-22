@@ -1,0 +1,16 @@
+{
+  "exported_at": "2026-10-17T13:06:52+00:00",
+  "mariadb": {
+    "seasons": 12,
+    "players": 3740,
+    "player_season_results": 75,
+    "matches": 47219,
+    "match_players": 116494
+  },
+  "mongodb": {
+    "matches": 47219,
+    "match_details": 780,
+    "players": 8
+  },
+  "format": "gzip JSON lines; Mongo in relaxed Extended JSON"
+}
