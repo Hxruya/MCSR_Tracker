@@ -1,0 +1,170 @@
+{
+ "status": "success",
+ "data": [
+  {
+   "id": 13891970,
+   "type": 2,
+   "seed": {
+    "id": "mtf3gvowtuez4c6q",
+    "overworld": "BURIED_TREASURE",
+    "nether": "STABLES",
+    "endTowers": [
+     100,
+     76,
+     88,
+     79
+    ],
+    "variations": [
+     "biome:structure:deep_ocean",
+     "biome:structure:deep_ocean",
+     "bastion:good_gap:1",
+     "bastion:triple:1",
+     "bastion:small_single:2",
+     "biome:bastion:nether_wastes",
+     "biome:fortress:nether_wastes",
+     "end_tower:caged:back_center"
+    ]
+   },
+   "category": "ANY",
+   "gameMode": "default",
+   "players": [
+    {
+     "uuid": "bbd1dbd2f3ed4c43b62fc7572229ee61",
+     "nickname": "romuxii",
+     "roleType": 0,
+     "eloRate": 2119,
+     "eloRank": 25,
+     "country": "by"
+    },
+    {
+     "uuid": "635f35ee69ed4f0c94ff26ece4818956",
+     "nickname": "edcr",
+     "roleType": 0,
+     "eloRate": 2515,
+     "eloRank": 1,
+     "country": "gb"
+    }
+   ],
+   "spectators": [],
+   "result": {
+    "uuid": "635f35ee69ed4f0c94ff26ece4818956",
+    "time": 510731
+   },
+   "forfeited": false,
+   "decayed": false,
+   "rank": {
+    "season": null,
+    "allTime": null
+   },
+   "vod": [],
+   "changes": [
+    {
+     "uuid": "635f35ee69ed4f0c94ff26ece4818956",
+     "change": 7,
+     "eloRate": 2508
+    },
+    {
+     "uuid": "bbd1dbd2f3ed4c43b62fc7572229ee61",
+     "change": -7,
+     "eloRate": 2077
+    }
+   ],
+   "beginner": false,
+   "botSource": null,
+   "season": 12,
+   "date": 1791065209,
+   "replayExists": 1,
+   "seedType": "BURIED_TREASURE",
+   "bastionType": "STABLES",
+   "tag": null
+  },
+  {
+   "id": 13662222,
+   "type": 3,
+   "seed": {
+    "id": "mtf49z6djf8h7111",
+    "overworld": "BURIED_TREASURE",
+    "nether": "TREASURE",
+    "endTowers": [
+     82,
+     76,
+     85,
+     79
+    ],
+    "variations": [
+     "biome:structure:deep_lukewarm_ocean",
+     "biome:structure:deep_lukewarm_ocean",
+     "biome:bastion:crimson_forest",
+     "biome:fortress:nether_wastes",
+     "end_tower:caged:front",
+     "end_tower:caged:back_center"
+    ]
+   },
+   "category": "ANY",
+   "gameMode": "default",
+   "players": [
+    {
+     "uuid": "d7d5369390414d87b644724780457ebc",
+     "nickname": "AppleW",
+     "roleType": 1,
+     "eloRate": 1784,
+     "eloRank": 150,
+     "country": "ru"
+    },
+    {
+     "uuid": "3c31aa86f27e44cbb27f50dc24bd8ffc",
+     "nickname": "Camisita",
+     "roleType": 0,
+     "eloRate": null,
+     "eloRank": null,
+     "country": null
+    },
+    {
+     "uuid": "fafe750ae4fb4c06820b1e971b14f137",
+     "nickname": "plint",
+     "roleType": 1,
+     "eloRate": 1429,
+     "eloRank": 1160,
+     "country": "nl"
+    },
+    {
+     "uuid": "1590b8fbcc6241fcb5afe30720bc8a17",
+     "nickname": "whosskyy",
+     "roleType": 1,
+     "eloRate": 1114,
+     "eloRank": 5491,
+     "country": "fi"
+    },
+    {
+     "uuid": "ee42c81856674c1db18a00b5f05dd4c8",
+     "nickname": "EmeraldZs",
+     "roleType": 0,
+     "eloRate": 1515,
+     "eloRank": 715,
+     "country": "ke"
+    }
+   ],
+   "spectators": [],
+   "result": {
+    "uuid": "ee42c81856674c1db18a00b5f05dd4c8",
+    "time": 603687
+   },
+   "forfeited": true,
+   "decayed": false,
+   "rank": {
+    "season": null,
+    "allTime": null
+   },
+   "vod": [],
+   "changes": [],
+   "beginner": false,
+   "botSource": null,
+   "season": 12,
+   "date": 1790359695,
+   "replayExists": 0,
+   "seedType": "BURIED_TREASURE",
+   "bastionType": "TREASURE",
+   "tag": null
+  }
+ ]
+}

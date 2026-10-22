@@ -1,0 +1,235 @@
+{
+ "status": "success",
+ "data": {
+  "uuid": "635f35ee69ed4f0c94ff26ece4818956",
+  "nickname": "edcr",
+  "roleType": 0,
+  "eloRate": 2515,
+  "eloRank": 1,
+  "country": "gb",
+  "seasonResults": {
+   "6": {
+    "last": {
+     "eloRate": 1515,
+     "eloRank": 212,
+     "phasePoint": 0,
+     "percentile": 4.7
+    },
+    "highest": 1582,
+    "lowest": 1032,
+    "phases": [],
+    "phaseHighest": 1582
+   },
+   "7": {
+    "last": {
+     "eloRate": 2185,
+     "eloRank": 14,
+     "phasePoint": 90,
+     "percentile": 0.2
+    },
+    "highest": 2203,
+    "lowest": 1843,
+    "phases": [
+     {
+      "phase": 2,
+      "eloRate": 1925,
+      "eloRank": 16,
+      "point": 25,
+      "type": "eloRate"
+     },
+     {
+      "phase": 3,
+      "eloRate": 2080,
+      "eloRank": 13,
+      "point": 30,
+      "type": "eloRate"
+     },
+     {
+      "phase": 4,
+      "eloRate": 2185,
+      "eloRank": 14,
+      "point": 35,
+      "type": "eloRate"
+     }
+    ],
+    "phaseHighest": 2203
+   },
+   "8": {
+    "last": {
+     "eloRate": 2430,
+     "eloRank": 1,
+     "phasePoint": 295,
+     "percentile": 0
+    },
+    "highest": 2491,
+    "lowest": 1417,
+    "phases": [
+     {
+      "phase": 1,
+      "eloRate": 1973,
+      "eloRank": 5,
+      "point": 40,
+      "type": "eloRate"
+     },
+     {
+      "phase": 2,
+      "eloRate": 2245,
+      "eloRank": 1,
+      "point": 60,
+      "type": "eloRate"
+     },
+     {
+      "phase": 3,
+      "eloRate": 2303,
+      "eloRank": 1,
+      "point": 75,
+      "type": "eloRate"
+     },
+     {
+      "phase": 4,
+      "eloRate": 2430,
+      "eloRank": 1,
+      "point": 100,
+      "type": "eloRate"
+     }
+    ],
+    "phaseHighest": 2491
+   },
+   "9": {
+    "last": {
+     "eloRate": 2477,
+     "eloRank": 5,
+     "phasePoint": 282,
+     "percentile": 0
+    },
+    "highest": 2789,
+    "lowest": 1604,
+    "phases": [
+     {
+      "phase": 1,
+      "eloRate": 2326,
+      "eloRank": 1,
+      "point": 50,
+      "type": "eloRate"
+     },
+     {
+      "phase": 2,
+      "eloRate": 2355,
+      "eloRank": 3,
+      "point": 53,
+      "type": "eloRate"
+     },
+     {
+      "phase": 3,
+      "eloRate": 2707,
+      "eloRank": 1,
+      "point": 75,
+      "type": "eloRate"
+     },
+     {
+      "phase": 4,
+      "eloRate": 2477,
+      "eloRank": 5,
+      "point": 79,
+      "type": "eloRate"
+     }
+    ],
+    "phaseHighest": 2789
+   },
+   "10": {
+    "last": {
+     "eloRate": 2617,
+     "eloRank": 2,
+     "phasePoint": 291,
+     "percentile": 0
+    },
+    "highest": 2772,
+    "lowest": 1646,
+    "phases": [
+     {
+      "phase": 1,
+      "eloRate": 2284,
+      "eloRank": 1,
+      "point": 50,
+      "type": "eloRate"
+     },
+     {
+      "phase": 2,
+      "eloRate": 2476,
+      "eloRank": 2,
+      "point": 57,
+      "type": "eloRate"
+     },
+     {
+      "phase": 3,
+      "eloRate": 2635,
+      "eloRank": 1,
+      "point": 75,
+      "type": "eloRate"
+     },
+     {
+      "phase": 4,
+      "eloRate": 2617,
+      "eloRank": 2,
+      "point": 94,
+      "type": "eloRate"
+     }
+    ],
+    "phaseHighest": 2772
+   },
+   "11": {
+    "last": {
+     "eloRate": 2688,
+     "eloRank": 2,
+     "phasePoint": 304,
+     "percentile": 0
+    },
+    "highest": 2722,
+    "lowest": 1648,
+    "phases": [
+     {
+      "phase": 1,
+      "eloRate": 2351,
+      "eloRank": 1,
+      "point": 50,
+      "type": "eloRate"
+     },
+     {
+      "phase": 2,
+      "eloRate": 2514,
+      "eloRank": 1,
+      "point": 60,
+      "type": "eloRate"
+     },
+     {
+      "phase": 3,
+      "eloRate": 2654,
+      "eloRank": 1,
+      "point": 75,
+      "type": "eloRate"
+     },
+     {
+      "phase": 4,
+      "eloRate": 2688,
+      "eloRank": 2,
+      "point": 94,
+      "type": "eloRate"
+     }
+    ],
+    "phaseHighest": 2722
+   },
+   "12": {
+    "last": {
+     "eloRate": 2515,
+     "eloRank": 1,
+     "phasePoint": 0,
+     "percentile": 0
+    },
+    "highest": 2563,
+    "phaseHighest": 2563,
+    "lowest": 1670,
+    "phases": []
+   }
+  }
+ }
+}

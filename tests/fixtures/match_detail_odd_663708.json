@@ -1,0 +1,50 @@
+{
+ "status": "success",
+ "data": {
+  "id": 663708,
+  "type": 2,
+  "season": 3,
+  "seed": {
+   "id": null,
+   "overworld": null,
+   "nether": null,
+   "endTowers": null,
+   "variations": []
+  },
+  "category": "ANY",
+  "date": 1703967702,
+  "players": [
+   {
+    "uuid": "3c8757790ab0400b8b9e3936e0dd535b",
+    "nickname": "doogile",
+    "roleType": 3,
+    "eloRate": 2279,
+    "eloRank": 5,
+    "country": "us"
+   }
+  ],
+  "spectators": [],
+  "result": null,
+  "forfeited": true,
+  "decayed": true,
+  "rank": {
+   "season": null,
+   "allTime": null
+  },
+  "changes": [
+   {
+    "uuid": "3c8757790ab0400b8b9e3936e0dd535b",
+    "change": -5,
+    "eloRate": 2207
+   }
+  ],
+  "completions": [],
+  "timelines": [],
+  "botSource": null,
+  "beginner": false,
+  "replayExists": 0,
+  "seedType": null,
+  "bastionType": null,
+  "tag": null
+ }
+}
