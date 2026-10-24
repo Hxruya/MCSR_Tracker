@@ -445,3 +445,34 @@ def test_elo_history_follows_matches(conn, mongo_db):
     out = sync.store_match(conn, mongo_db, raw_match(1, [A, B], A[0], date=1790000100, elo=1501, change=12))
     pts = list(mongo_db["elo_history"].find({"match_id": 1, "player": A[0]}))
     assert out == "updated" and len(pts) == 1 and (pts[0]["change"], pts[0]["elo"]) == (12, 1513)
+
+
+def test_peer_benchmark(app, conn, mongo_db):
+    """Peer benchmark assigns Elo tiers and benchmarks a player's median against their tier peers."""
+    from app import benchmark
+    from app.db_sql import query_one
+    seed_season(conn, 12)
+    # Store wins: player A (Diamond, 1600), player B (Diamond, 1650), player C (Gold, 1100)
+    sync.store_match(conn, mongo_db, raw_match(1, [A, B], A[0], time_ms=700000, elo=1600))
+    sync.store_match(conn, mongo_db, raw_match(2, [A, B], A[0], time_ms=800000, elo=1600))
+    sync.store_match(conn, mongo_db, raw_match(3, [A, B], B[0], time_ms=900000, elo=1650))
+    sync.store_match(conn, mongo_db, raw_match(4, [C, B], C[0], time_ms=1000000, elo=1100))
+
+    with app.test_request_context():
+        with conn.cursor() as cur:
+            cur.execute("UPDATE players SET current_elo = 1600 WHERE uuid = %s", (A[0],))
+            cur.execute("UPDATE players SET current_elo = 1650 WHERE uuid = %s", (B[0],))
+            cur.execute("UPDATE players SET current_elo = 1100 WHERE uuid = %s", (C[0],))
+        conn.commit()
+
+        pid_a = query_one("SELECT player_id FROM players WHERE uuid = %s", (A[0],))["player_id"]
+        res = benchmark.peer_benchmark(pid_a)
+        assert res is not None
+        assert res["tier_name"] == "Diamond (1500–1799)"
+        assert res["tier_runs"] == 3
+        assert res["player_runs"] == 2
+        assert res["player_median_ms"] == 750000.0
+        assert res["tier_median_ms"] == 800000.0
+        assert res["pace_status"] == "Overperforming"
+        assert res["delta_ms"] == -50000.0
+

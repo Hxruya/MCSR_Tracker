@@ -5,7 +5,7 @@ token required), so a page view or a link from another site never spends the API
 """
 from flask import Blueprint, abort, current_app, flash, g, redirect, render_template, request, url_for
 
-from app import elo, endgame, rivalry, seeds, splits, summary, util
+from app import benchmark, elo, endgame, rivalry, seeds, splits, summary, util
 from app.auth import login_required
 from app.db_mongo import get_mongo, optional
 from app.db_sql import get_db, query_all, query_one
@@ -138,6 +138,7 @@ def profile(uuid):
     doc = optional(get_mongo()["players"].find_one, {"_id": uuid},
                    {"profile.statistics": 1, "profile.achievements.total": 1},
                    what="the stored API profile")
+    tier_benchmark = benchmark.peer_benchmark(pid, season=season)
     bookmark = None
     if g.user:
         bookmark = query_one("SELECT bookmark_id, note FROM bookmarks WHERE user_id = %s AND player_id = %s",
@@ -150,7 +151,7 @@ def profile(uuid):
         latest_import=latest_import, running=running, doc=doc or {}, bookmark=bookmark,
         elo=elo_view, season_rows=season_rows, season_chart=season_win_rate_chart(season_rows),
         end=endgame.profile_view(uuid, season), splits=splits.profile_view(uuid, season), seed_types=seed_types,
-        rivals=rivals,
+        rivals=rivals, benchmark=tier_benchmark,
     ), (400 if error else 200)
 
 

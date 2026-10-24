@@ -21,6 +21,10 @@
   --draw: #8a6d1f; --draw-soft: #f7f0d9;
   --series-1: #c13b7e;   /* checked for colour-blind contrast */
   --series-2: #2a78d6;
+  --series-3: #6d4fd1;
+  --series-4: #1d7f4e;
+  --series-5: #8a6d1f;
+  --series-6: #8a7f90;
   --grid: #eeeaf1;
   --axis: #cfc6d5;
   --status-good: #0ca30c;
@@ -54,6 +58,10 @@
     --draw: #e3c56b; --draw-soft: #352d14;
     --series-1: #d4559a;
     --series-2: #3987e5;
+    --series-3: #a996f5;
+    --series-4: #4fd08f;
+    --series-5: #e3c56b;
+    --series-6: #9b90a1;
     --grid: #2b2430;
     --axis: #40364a;
     --status-neutral: #6f6475;
@@ -68,7 +76,9 @@
   --bg: #121014; --surface: #1e1822; --surface-2: #261f2b; --ink: #f6f1f8; --ink-2: #cbc1cf; --muted: #9b90a1;
   --border: #2f2735; --border-strong: #3d3344; --accent: #e070a9; --accent-hover: #ea8fbd; --accent-ink: #1a0f16;
   --accent-soft: #3a2131; --accent-2: #a996f5; --win: #4fd08f; --win-soft: #173126; --loss: #f07a92;
-  --loss-soft: #3a1c24; --draw: #e3c56b; --draw-soft: #352d14; --series-1: #d4559a; --series-2: #3987e5;
+  --loss-soft: #3a1c24; --draw: #e3c56b; --draw-soft: #352d14;
+  --series-1: #d4559a; --series-2: #3987e5;
+  --series-3: #a996f5; --series-4: #4fd08f; --series-5: #e3c56b; --series-6: #9b90a1;
   --grid: #2b2430; --axis: #40364a; --status-neutral: #6f6475;
   --shadow: 0 1px 2px rgba(0, 0, 0, .3), 0 8px 24px rgba(0, 0, 0, .25);
   --hero-grad: linear-gradient(135deg, #2c1726 0%, #221a35 55%, #15213a 100%);
@@ -506,3 +516,111 @@ strong.best { color: var(--win); }
 /* ---------------------------------------------------------------- query panel (query_benchmarks package) */
 /* The panel styles itself; these three variables match it to the Sift palette in both themes. */
 :root { --qb-accent: var(--accent); --qb-sql: var(--accent-2); --qb-mongo: var(--series-2); }
+
+/* ---------------------------------------------------------------- rank completion bars & split table (reference.png) */
+.rank-section-title {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.12em;
+  text-transform: uppercase;
+  color: #5ec4c7;
+  margin: 22px 0 14px;
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+.rank-section-title::after {
+  content: "";
+  flex: 1;
+  height: 1px;
+  background: var(--border);
+}
+.rank-bars-box {
+  background: var(--surface-2);
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  padding: 16px 20px;
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+.rank-bar-row {
+  display: grid;
+  grid-template-columns: 115px minmax(0, 1fr) 130px;
+  align-items: center;
+  gap: 14px;
+}
+.rank-bar-label {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 0.82rem;
+  font-weight: 700;
+  letter-spacing: 0.06em;
+  text-transform: uppercase;
+}
+.rank-bar-track {
+  height: 10px;
+  background: rgba(128, 128, 128, 0.18);
+  border-radius: 999px;
+  overflow: hidden;
+}
+.rank-bar-fill {
+  height: 100%;
+  border-radius: 999px;
+  transition: width 0.3s ease;
+}
+.rank-bar-time {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 0.85rem;
+  font-variant-numeric: tabular-nums;
+  text-align: right;
+  font-weight: 700;
+  white-space: nowrap;
+}
+.rank-bar-time.no-data {
+  font-size: 0.76rem;
+  font-weight: 500;
+  opacity: 0.75;
+  font-style: italic;
+  letter-spacing: 0.02em;
+}
+
+.tier-color-you { color: #e070a9 !important; }
+.tier-fill-you { background: #e070a9; }
+
+.tier-color-netherite { color: #a996f5 !important; }
+.tier-fill-netherite { background: #a996f5; }
+
+.tier-color-diamond { color: #68b3dc !important; }
+.tier-fill-diamond { background: #68b3dc; }
+
+.tier-color-emerald { color: #4fd08f !important; }
+.tier-fill-emerald { background: #4fd08f; }
+
+.tier-color-gold { color: #e5c158 !important; }
+.tier-fill-gold { background: #e5c158; }
+
+.tier-color-iron { color: #a59aab !important; }
+.tier-fill-iron { background: #a59aab; }
+
+.split-table-ranks th {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-size: 0.74rem;
+  letter-spacing: 0.05em;
+  padding: 10px 12px;
+}
+.split-table-ranks td {
+  font-family: "JetBrains Mono", Consolas, monospace;
+  font-variant-numeric: tabular-nums;
+  font-size: 0.88rem;
+  padding: 9px 12px;
+}
+.split-table-ranks .pos {
+  color: #4fd08f !important;
+  font-weight: 700;
+}
+.split-table-ranks .neg {
+  color: #e06c75 !important;
+  font-weight: 700;
+}
+

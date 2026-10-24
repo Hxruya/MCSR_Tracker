@@ -83,6 +83,70 @@
   {% endif %}
 </section>
 
+{% if benchmark %}
+<section class="card" id="peer-benchmark">
+  <div class="card-head">
+    <h2>Elo Tier Benchmark</h2>
+    <span class="hint">{{ benchmark.tier_name }} · all recorded matches · {% if season is none %}lifetime{% else %}season {{ season }}{% endif %}</span>
+  </div>
+
+  <div class="grid stats4">
+    <div class="stat">
+      <div class="label">Pace Status</div>
+      <div class="value" style="font-size:1.35rem">
+        <span class="{{ 'pos' if benchmark.pace_status == 'Overperforming' else 'neg' if benchmark.pace_status == 'Underperforming' else '' }}">
+          {{ benchmark.pace_status }}
+        </span>
+      </div>
+      <div class="sub">
+        {% if benchmark.delta_ms is not none %}
+          <strong class="{{ 'pos' if benchmark.delta_ms < 0 else 'neg' }}">{{ benchmark.delta_ms|gap }}</strong> vs tier median
+        {% else %}
+          on par with tier median
+        {% endif %}
+      </div>
+    </div>
+
+    <div class="stat">
+      <div class="label">Your Median Finish</div>
+      <div class="value">{{ benchmark.player_median_ms|ms }}</div>
+      <div class="sub">over all {{ benchmark.player_runs }} recorded ranked {% if benchmark.player_runs == 1 %}win{% else %}wins{% endif %}</div>
+    </div>
+
+    <div class="stat">
+      <div class="label">Tier Median Pace</div>
+      <div class="value">{{ benchmark.tier_median_ms|ms }}</div>
+      <div class="sub">middle 50%: {{ benchmark.tier_q1_ms|ms }} – {{ benchmark.tier_q3_ms|ms }}</div>
+    </div>
+
+    <div class="stat">
+      <div class="label">Tier Pace Percentile</div>
+      <div class="value" style="color:var(--accent)">{{ benchmark.percentile_rank }}%</div>
+      <div class="sub">faster than {{ benchmark.percentile_rank }}% of {{ '{:,}'.format(benchmark.tier_runs) }} peer runs</div>
+    </div>
+  </div>
+
+  <div style="margin-top:16px; padding:12px 14px; background:var(--surface-2); border-radius:10px; font-size:0.88rem; color:var(--ink-2); display:flex; align-items:center; justify-content:space-between; flex-wrap:wrap; gap:10px;">
+    <div>
+      <strong>Benchmark Scope:</strong> Ranked runs in <strong>{{ benchmark.tier_name }}</strong> ({{ '{:,}'.format(benchmark.tier_runs) }} runs across {{ benchmark.tier_players }} players).
+      Tier fastest record is <strong>{{ benchmark.tier_best_ms|ms }}</strong>.
+    </div>
+    {% if benchmark.percentile_rank is not none %}
+    <div style="display:inline-flex; align-items:center; gap:8px;">
+      <span class="badge {{ 'won' if benchmark.pace_status == 'Overperforming' else 'muted' }}">
+        TOP {{ (100 - benchmark.percentile_rank)|round(1) }}% PACE
+      </span>
+    </div>
+    {% endif %}
+  </div>
+
+  <p class="muted small" style="margin:12px 0 0">
+    Computed via window functions (<code>PERCENTILE_CONT(0.50)</code>, <code>PERCENTILE_CONT(0.25)</code>, <code>PERCENTILE_CONT(0.75)</code>) and Common Table Expressions (CTEs).
+    A speedrunner is <b>Overperforming</b> when their median winning time is faster than the median winning time of all players in their Elo tier.
+  </p>
+</section>
+{% endif %}
+
 <div class="split">
   <section class="card">
     <div class="card-head"><h2>Elo Over Time</h2><span class="hint">{% if season is none %}all seasons{% else %}season {{ season }}{% endif %} · ranked</span></div>
@@ -155,7 +219,7 @@
 </section>
 
 <section class="card" id="splits">
-  <div class="card-head"><h2>Splits</h2>
+  <div class="card-head"><h2>Splits vs Elo Tiers</h2>
     {% if splits and splits.rows %}<span class="hint">{{ splits.matches }} ranked matches with timelines · {{ splits.seasons_label }}</span>{% endif %}</div>
   {% if splits and splits.rows %}
     {% if end and end.coverage.pct is not none and end.coverage.pct < 100 %}
@@ -167,31 +231,75 @@
       <div class="stat"><div class="label">Median finish</div>
         <div class="value">{{ splits.finish.median|ms if splits.finish else '–' }}</div>
         <div class="sub">{% if splits.finish %}in {{ splits.finish.reached }} completed runs{% else %}no completed runs{% endif %}</div></div>
-      <div class="stat"><div class="label">Biggest gain</div>
+      <div class="stat"><div class="label">Biggest gain vs tier</div>
         <div class="value" style="font-size:1.1rem">{{ splits.best.label if splits.best else '–' }}</div>
-        <div class="sub">{% if splits.best %}<span class="pos">{{ '%.1f'|format(splits.best.gap_change|abs / 1000) }}s</span> gained on the way there{% else %}no stretch where you gain time{% endif %}</div></div>
-      <div class="stat"><div class="label">Biggest loss</div>
+        <div class="sub">{% if splits.best %}<span class="pos">{{ '%.1f'|format(splits.best.gap_change|abs / 1000) }}s</span> gained vs {{ splits.tier_name }}{% else %}no stretch where you gain time{% endif %}</div></div>
+      <div class="stat"><div class="label">Biggest loss vs tier</div>
         <div class="value" style="font-size:1.1rem">{{ splits.worst.label if splits.worst else '–' }}</div>
-        <div class="sub">{% if splits.worst %}<span class="neg">{{ '%.1f'|format(splits.worst.gap_change / 1000) }}s</span> lost on the way there{% else %}no stretch where you lose time{% endif %}</div></div>
+        <div class="sub">{% if splits.worst %}<span class="neg">{{ '%.1f'|format(splits.worst.gap_change / 1000) }}s</span> lost vs {{ splits.tier_name }}{% else %}no stretch where you lose time{% endif %}</div></div>
     </div>
-    <div class="table-wrap" style="margin-top:16px"><table>
-      <thead><tr><th>Milestone</th><th class="num">Reached</th><th class="num">Your median</th><th class="num">Middle 50%</th>
-        <th class="num">Opponents' median</th><th class="num">Gap</th><th class="num">Change</th></tr></thead>
-      <tbody>{% for r in splits.rows %}
-        <tr><td>{{ r.label }}</td>
-          <td class="num">{{ r.reached }} <span class="muted small">({{ r.reached_pct }}%)</span></td>
-          <td class="num">{{ r.median|ms }}</td>
-          <td class="num muted small">{% if r.q1 is not none %}{{ r.q1|ms }} – {{ r.q3|ms }}{% else %}–{% endif %}</td>
-          <td class="num">{{ r.opp_median|ms }}</td>
-          <td class="num">{% if r.gap is not none %}<span class="{{ 'pos' if r.gap < 0 else 'neg' if r.gap > 0 else '' }}"
-              title="Median of (you − opponent) over {{ r.paired }} matches where both reached it">{{ r.gap|gap }}</span>{% else %}–{% endif %}</td>
-          <td class="num">{% if r.gap_change is not none %}<span class="{{ 'pos' if r.gap_change < 0 else 'neg' if r.gap_change > 0 else '' }}">{{ r.gap_change|gap }}</span>{% else %}–{% endif %}</td></tr>
-      {% endfor %}</tbody>
-    </table></div>
-    <p class="muted small" style="margin:12px 0 0">Times are from the start of the match. <b>Gap</b> is the median of
-      (your time − your opponent's) over the matches where you both reached the milestone: negative means you were ahead.
-      <b>Change</b> is how much the gap moved since the previous milestone, which shows where you win or lose time.
-      Finish has no gap: only one player finishes a match.</p>
+
+    {% if splits.completion_bars %}
+      <div class="rank-section-title">AVG COMPLETION TIME BY RANK <span style="font-size:0.7rem; font-weight:500; text-transform:none; opacity:0.8; letter-spacing:normal;">(timeline sample)</span></div>
+      <div class="rank-bars-box">
+        {% for b in splits.completion_bars %}
+          <div class="rank-bar-row">
+            <span class="rank-bar-label tier-color-{{ b.key }}">{{ b.label }}</span>
+            <div class="rank-bar-track">
+              <div class="rank-bar-fill tier-fill-{{ b.key }}" style="width: {{ b.pct }}%;"></div>
+            </div>
+            <span class="rank-bar-time tier-color-{{ b.key }}{% if b.ms is none %} no-data{% endif %}"{% if b.key == 'you' %} title="Pace across loaded timeline matches"{% endif %}>{{ b.time_fmt }}</span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+
+    <div class="rank-section-title" style="margin-top:28px">SPLIT COMPARISON ACROSS ALL RANKS <span style="font-size:0.7rem; font-weight:500; text-transform:none; opacity:0.8; letter-spacing:normal;">(timeline sample)</span></div>
+    <p class="muted small" style="margin:-8px 0 14px; font-family:'JetBrains Mono', Consolas, monospace; font-size:0.78rem;">
+      ▲ = you are faster · ▼ = you are slower (&gt;5% diff shown)
+    </p>
+
+    <div class="table-wrap">
+      <table class="split-table-ranks">
+        <thead>
+          <tr>
+            <th style="color:var(--muted)">SPLIT</th>
+            <th class="num tier-color-you">YOU</th>
+            <th class="num tier-color-netherite">NETHERITE (1800+)</th>
+            <th class="num tier-color-diamond">DIAMOND (1500–1799)</th>
+            <th class="num tier-color-emerald">EMERALD (1200–1499)</th>
+            <th class="num tier-color-gold">GOLD (900–1199)</th>
+            <th class="num tier-color-iron">IRON / COAL (&lt;900)</th>
+          </tr>
+        </thead>
+        <tbody>
+          {% for r in splits.rows %}
+            <tr>
+              <td style="font-weight:600; color:var(--ink)">{{ r.label }}</td>
+              <td class="num tier-color-you" style="font-weight:700"
+                  {% if r.opp_median is not none or r.gap is not none %}title="{% if r.opp_median is not none %}Opponent median: {{ r.opp_median|ms }}{% endif %}{% if r.gap is not none %} · Opponent gap: {{ r.gap|gap }}{% endif %}"{% endif %}>
+                {% if r.median is not none %}
+                  {{ r.median|ms }}
+                  {% if r.diff_flag == 'faster' %}
+                    <span class="pos" style="margin-left:4px" title="{{ r.diff_pct|abs }}% faster than {{ splits.tier_name }}">▲</span>
+                  {% elif r.diff_flag == 'slower' %}
+                    <span class="neg" style="margin-left:4px" title="{{ r.diff_pct }}% slower than {{ splits.tier_name }}">▼</span>
+                  {% endif %}
+                {% else %}–{% endif %}
+              </td>
+              {% for tv in r.tier_values %}
+                <td class="num tier-color-{{ tv.key }}">
+                  {% if tv.ms is not none %}{{ tv.ms|ms }}{% else %}–{% endif %}
+                </td>
+              {% endfor %}
+            </tr>
+          {% endfor %}
+        </tbody>
+      </table>
+    </div>
+    <p class="muted small" style="margin:12px 0 0">Times are from the start of the match computed across the loaded timeline replay sample.
+      <b>YOU</b> shows your personal median pace in timeline matches.
+      <b>▲ / ▼</b> indicators highlight milestones where you are &gt;5% faster or slower than your Elo peer group (<b>{{ splits.tier_name }}</b>).</p>
   {% elif splits %}
     <p class="empty">Match timelines haven't been loaded for {% if season is none %}this player{% else %}season {{ season }}{% endif %} yet, so there are no split times.</p>
   {% else %}
@@ -309,4 +417,4 @@
 </div>
 {% endif %}
 {% endblock %}
-{% block scripts %}{% if elo or season_chart or (end and end.chart) or seed_types %}{{ chart_scripts() }}{% endif %}{% endblock %}
+{% block scripts %}{% if elo or season_chart or (end and end.chart) or seed_types or (splits and splits.chart) %}{{ chart_scripts() }}{% endif %}{% endblock %}

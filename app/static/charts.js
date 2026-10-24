@@ -23,6 +23,13 @@
     elo: (v) => Math.round(v).toLocaleString(),
     pct: (v) => `${Number(v).toFixed(v % 1 ? 1 : 0)}%`,
     sec: (v) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(Math.abs(v) < 10 && v % 1 ? 1 : 0)}s`,
+    time: (v) => {
+      if (v == null) return "–";
+      const s = Math.round(Number(v));
+      const m = Math.floor(s / 60);
+      const rem = s % 60;
+      return `${m < 10 ? '0' : ''}${m}:${rem < 10 ? '0' : ''}${rem}`;
+    },
     pp: (v) => `${v > 0 ? "+" : v < 0 ? "−" : ""}${Math.abs(v).toFixed(Math.abs(v) < 10 && v % 1 ? 1 : 0)} pp`,
     date: (v) => new Date(v).toISOString().slice(0, 10),
     month: (v) => { const d = new Date(v); return `${d.toLocaleDateString("en", { month: "short", timeZone: "UTC" })} '${String(d.getUTCFullYear()).slice(2)}`; },
@@ -77,7 +84,15 @@
   function build(canvas) {
     const spec = JSON.parse(document.getElementById(canvas.dataset.chart).textContent);
     const t = theme();
-    const color = (s) => (s.slot === 2 ? t.s2 : t.s1);
+    const palette = {
+      1: t.s1,
+      2: css("--series-2") || t.s2,
+      3: css("--series-3") || "#a996f5",
+      4: css("--series-4") || "#4fd08f",
+      5: css("--series-5") || "#e3c56b",
+      6: css("--series-6") || t.muted,
+    };
+    const color = (s) => (s.color || palette[s.slot] || (s.slot === 2 ? t.s2 : t.s1));
     const opts = baseOptions(t, spec);
     const valueTick = fmt[spec.format] || fmt.int;
 
